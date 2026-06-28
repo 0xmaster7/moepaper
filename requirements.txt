@@ -1,0 +1,11 @@
+faiss-cpu
+joblib
+numpy
+packaging
+pandas
+python-dateutil
+six
+torch
+r2pipe
+tensorflow
+pyfiglet

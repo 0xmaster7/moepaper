@@ -21,3 +21,11 @@ env/
 .DS_Store
 .vscode/
 .idea/
+
+# Large Model Weights & Archives (GitHub blocks files >100MB)
+*.pb
+*.bz2
+
+# Test Outputs
+test_output/
+test_disassembly.txt
