@@ -1,0 +1,23 @@
+# Generated FAISS Arrays and Indexes
+*.npy
+*.bin
+*.pkl
+faiss_index.bin
+faiss_meta.pkl
+all_embeddings.npy
+all_family.npy
+all_sha256.npy
+
+# Python Cache and Environments
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+env/
+.env/
+.venv/
+
+# OS & IDE Files
+.DS_Store
+.vscode/
+.idea/
