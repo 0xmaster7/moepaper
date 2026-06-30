@@ -26,6 +26,12 @@ Because this repository relies on specific machine learning libraries, we highly
    python -m pip install -r requirements.txt
    ```
 
+4. **Download the Large Datasets**:
+   Because the dataset CSV files are too large for GitHub, we host them publicly on Hugging Face. To automatically download them into your root directory, run:
+   ```bash
+   python download_datasets.py
+   ```
+
 *(Note: If you plan on extracting SAFE embeddings from raw binaries, you will also need to install Radare2 on your system: `brew install radare2` on macOS, or `apt install radare2` on Linux).*
 
 ---
