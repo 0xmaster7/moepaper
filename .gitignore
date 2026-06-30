@@ -1,5 +1,4 @@
 # Generated FAISS Arrays and Indexes
-*.npy
 *.bin
 *.pkl
 faiss_index.bin
@@ -23,9 +22,13 @@ env/
 .idea/
 
 # Large Model Weights & Archives (GitHub blocks files >100MB)
-*.pb
-*.bz2
+safe_final/data/safe.pb
+safe_final/data/i2v.tar.bz2
 
 # Test Outputs
 test_output/
 test_disassembly.txt
+
+# Large CSV Datasets (>100MB)
+merged.csv
+benign_ember_features.csv
