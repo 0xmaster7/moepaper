@@ -53,7 +53,10 @@ This repository contains stripped-down, streamlined versions of the expert model
 - **Why it's stripped down**: Like SAFE, we only retained the core model architecture and inference script necessary to generate the raw byte embeddings for our MoE pipeline.
 - **Original Repository**: [FutureComputing4AI/MalConv2](https://github.com/FutureComputing4AI/MalConv2)
 
-*(Note: The **Node2Vec** expert is currently being integrated and will appear in a separate folder shortly).*
+### 3. `node2vec_final/` (Node2Vec Expert)
+**Node2Vec** analyzes the mathematical shape and control flow graph (CFG) of the binary.
+- **What it does**: Disassembles raw binaries using Radare2, extracts the directed Control Flow Graph, and runs hundreds of random walks across the graph nodes to generate a comprehensive structural embedding.
+- **Why it's stripped down**: We merged the original separate malware and benign pipelines into a single, clean inference script (`embed_graph.py`) that handles the Radare2 graph extraction and Node2Vec embedding generation automatically.
 
 ---
 

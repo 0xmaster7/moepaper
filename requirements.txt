@@ -9,4 +9,8 @@ torch
 r2pipe
 tensorflow
 pyfiglet
+networkx
+node2vec
+pydot<3.0.0
 huggingface_hub
+scikit-learn
