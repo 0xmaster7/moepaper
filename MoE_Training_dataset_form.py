@@ -380,8 +380,9 @@ class PrecomputedExpertsDataset(Dataset):
         }
 
 class GatingMLP(nn.Module):
-    def __init__(self, in_dim, hidden=256, num_experts=3, dropout=0.1):
+    def __init__(self, in_dim, hidden=256, num_experts=3, dropout=0.1, tau=1.0):
         super().__init__()
+        self.tau = tau
         self.net = nn.Sequential(
             nn.Linear(in_dim, hidden),
             nn.ReLU(),
@@ -394,7 +395,8 @@ class GatingMLP(nn.Module):
 
     def forward(self, x):
         logits = self.net(x)
-        p = F.softmax(logits, dim=-1)
+        logits = torch.tanh(logits / 5.0) * 5.0   # bound logits to [-5, 5]
+        p = F.softmax(logits / self.tau, dim=-1)
         return p, logits
 
 class MoEOnEmbeddings(nn.Module):
@@ -549,7 +551,8 @@ def train_with_val(
 
         w_retr = w_retr_schedule(ep, w_retr_max=w_retr_max, warmup_epochs=15, ramp_epochs=20)
 
-        for b in train_loader:
+        EXPERT_DROPOUT = 0.3
+        for bi, b in enumerate(train_loader):
             x_tab_bin  = b["x_tab_bin"].to(device)
             x_tab_retr = b["x_tab_retr"].to(device)
             e_mal      = b["e_mal"].to(device)
@@ -559,7 +562,24 @@ def train_with_val(
             Y_type     = b["Y_type"].to(device)
             b_masks    = b["masks"].to(device)
 
+            if model.training and EXPERT_DROPOUT > 0:
+                keep = (torch.rand_like(b_masks.float()) > EXPERT_DROPOUT).float()
+                new_masks = b_masks.float() * keep
+                empty = new_masks.sum(1, keepdim=True) == 0
+                b_masks = torch.where(empty, b_masks.float(), new_masks)
+
             out = model(x_tab_bin, x_tab_retr, e_mal, e_safe, e_n2v, masks=b_masks)
+
+            if bi == 0:
+                with torch.no_grad():
+                    p = out["p_retr"]
+                    print("row-sum min/max:", p.sum(1).min().item(), p.sum(1).max().item())
+                    print("raw mean p_retr:", [round(v,3) for v in p.mean(0).tolist()])
+                    m = b_masks.float()
+                    pm = p * m
+                    pm = pm / pm.sum(1, keepdim=True).clamp_min(1e-9)
+                    print("masked-renorm mean:", [round(v,3) for v in pm.mean(0).tolist()])
+                    print("argmax distribution:", torch.bincount(p.argmax(1), minlength=3).tolist())
 
             loss_bin = F.cross_entropy(out["bin_logits"], y_bin)
             # balance loss only on gate_retr — gate_bin is allowed to collapse to MalConv
@@ -845,8 +865,13 @@ from pathlib import Path
 def remap_malconv_map_to_sha(mal_map, filename_to_sha):
     out = {}
     unmapped = 0
+    sha_like = re.compile(r"^[0-9a-f]{64}$", re.IGNORECASE)
     for sid, v in mal_map.items():
         name = str(sid).strip().lower()
+        if sha_like.match(name):
+            out[name] = v
+            continue
+
         base = Path(name).name
         stem = Path(base).stem
 
