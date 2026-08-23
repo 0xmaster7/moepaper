@@ -1,0 +1,184 @@
+17,18c17,18
+< MALWARE_HASHES_TXT = Path("sha_list.txt")          # SOREL malware sha256 list (one per line)
+< BENIGN_HASHES_CSV  = Path("benign_hashes.csv")     # benign sha256 list (one column or a column named sha256)
+---
+> MALWARE_HASHES_TXT = Path("/Users/amangolani/RevEnggSorel/MoE-based-Malware-classification/sha_list.txt")          # SOREL malware sha256 list (one per line)
+> BENIGN_HASHES_CSV  = Path("/Users/amangolani/MoE_project_data/benign_hashes.csv")     # benign sha256 list (one column or a column named sha256)
+20,24c20,24
+< MAL_TABULAR_CSV = Path("dataset_emberSorel_merged.csv")     # malware table
+< BEN_TABULAR_CSV = Path("benign_ember_features.csv")     # benign EMBER table you generated (f0..f2567 + zeros labels)
+< MASTER_TABULAR_CSV=Path("merged.csv")
+< SAFE_DIR_MAL = Path("embeddings")                           # embeddings_dir/<sha256>/binary_embedding.npy
+< SAFE_DIR_BEN=Path("embeddings_benign")
+---
+> MAL_TABULAR_CSV = Path("/Users/amangolani/RevEnggSorel/dataset_emberSorel_merged.csv")     # malware table
+> BEN_TABULAR_CSV = Path("/Users/amangolani/MoE_project_data/benign_ember_features.csv")     # benign EMBER table you generated (f0..f2567 + zeros labels)
+> MASTER_TABULAR_CSV=Path("/Users/amangolani/MoE_project_data/merged.csv")
+> SAFE_DIR_MAL = Path("/Users/amangolani/MoE_project_data/embeddings")                           # embeddings_dir/<sha256>/binary_embedding.npy
+> SAFE_DIR_BEN=Path("/Users/amangolani/MoE_project_data/embeddings_benign")
+26,30c26,30
+< MALCONV_DIR_MAL=Path("malware_embeddings")
+< MALCONV_DIR_BEN = Path("benignware_embeddings")                    # <sha256>.npy (pooled malconv emb); update if mixed
+< COLUMN_NAMES_TXT=Path("column_names_ember.txt")
+< N2V_MALWARE_NPY = Path("embeddings_with_ids.npy")              # object array (N,2): [sha256, emb]
+< N2V_BENIGN_NPY  = Path("benign_embeddings_with_ids.npy")       # object array (N,2): [sha256, emb]
+---
+> MALCONV_DIR_MAL=Path("/Users/amangolani/MoE_project_data/malware_embeddings")
+> MALCONV_DIR_BEN = Path("/Users/amangolani/MoE_project_data/benignware_embeddings")                    # <sha256>.npy (pooled malconv emb); update if mixed
+> COLUMN_NAMES_TXT= Path("/Users/amangolani/MoE_project_data/column_names_ember.txt")
+> N2V_MALWARE_NPY = Path("/Users/amangolani/MoE_project_data/embeddings_with_ids.npy")              # object array (N,2): [sha256, emb]
+> N2V_BENIGN_NPY  = Path("/Users/amangolani/MoE_project_data/benign_embeddings_with_ids.npy")       # object array (N,2): [sha256, emb]
+383c383
+<     def __init__(self, in_dim, hidden=256, num_experts=3, dropout=0.1, tau=1.0):
+---
+>     def __init__(self, in_dim, hidden=256, num_experts=3, dropout=0.1):
+385d384
+<         self.tau = tau
+398,399c397
+<         logits = torch.tanh(logits / 5.0) * 5.0   # bound logits to [-5, 5]
+<         p = F.softmax(logits / self.tau, dim=-1)
+---
+>         p = F.softmax(logits, dim=-1)
+451c449
+< 
+---
+>         
+529a528
+>     EXPERT_DROPOUT = 0.3
+554,555c553
+<         EXPERT_DROPOUT = 0.3
+<         for bi, b in enumerate(train_loader):
+---
+>         for b in train_loader:
+564c562
+< 
+---
+>             # --- expert dropout: prevent collapse onto the always-available expert ---
+566,570c564,567
+<                 keep = (torch.rand_like(b_masks.float()) > EXPERT_DROPOUT).float()
+<                 new_masks = b_masks.float() * keep
+<                 empty = new_masks.sum(1, keepdim=True) == 0
+<                 b_masks = torch.where(empty, b_masks.float(), new_masks)
+< 
+---
+>                 drop = (torch.rand_like(b_masks.float()) < EXPERT_DROPOUT)
+>                 keep_one = b_masks.float().sum(1, keepdim=True) > 1   # never drop the last expert
+>                 b_masks = (b_masks.float() * (~drop | ~keep_one).float())
+>                 b_masks = torch.where(b_masks.sum(1, keepdim=True) > 0, b_masks, torch.ones_like(b_masks))
+572,583c569,576
+< 
+<             if bi == 0:
+<                 with torch.no_grad():
+<                     p = out["p_retr"]
+<                     print("row-sum min/max:", p.sum(1).min().item(), p.sum(1).max().item())
+<                     print("raw mean p_retr:", [round(v,3) for v in p.mean(0).tolist()])
+<                     m = b_masks.float()
+<                     pm = p * m
+<                     pm = pm / pm.sum(1, keepdim=True).clamp_min(1e-9)
+<                     print("masked-renorm mean:", [round(v,3) for v in pm.mean(0).tolist()])
+<                     print("argmax distribution:", torch.bincount(p.argmax(1), minlength=3).tolist())
+< 
+---
+>             with torch.no_grad():
+>                 p = out["p_retr"]                       # (B,3)
+>                 print("row-sum min/max:", p.sum(1).min().item(), p.sum(1).max().item())
+>                 print("raw mean p_retr:", p.mean(0).tolist())
+>                 m = b_masks.float()
+>                 pm = (p * m); pm = pm / pm.sum(1, keepdim=True).clamp_min(1e-9)
+>                 print("masked-renorm mean:", pm.mean(0).tolist())
+>                 print("argmax distribution:", torch.bincount(p.argmax(1), minlength=3).tolist())
+867d859
+<     unmapped = 0
+868a861,863
+>     unmapped = 0
+>     kept_sha = 0
+> 
+871c866,868
+<         if sha_like.match(name):
+---
+> 
+>         # already sha (malware embeddings are stored as <sha256>.npy)
+>         if sha_like.fullmatch(name):
+872a870
+>             kept_sha += 1
+874a873
+>         # filename-style key (benign embeddings are stored as <displayname>.npy)
+886c885
+<     return out, unmapped
+---
+>     return out, kept_sha, unmapped
+931,932c930
+<     print("global_ids:", len(global_ids), "(malware:", len(malware_ids), "benign:", len(benign_ids), ")")
+< 
+---
+>     
+937c935,938
+< 
+---
+>     
+>     # NOTE: diagnostics that inspect master_df.index must run AFTER set_index/reindex below.
+>     print("global_ids:", len(global_ids), "(malware:", len(malware_ids), "benign:", len(benign_ids), ")")
+>     
+943a945,965
+>     # ---- Drop ids absent from master_tabular.csv -------------------------------
+>     # reindex() fabricates all-NaN placeholder rows for ids not present in the CSV.
+>     # Without this, fillna(0) would label them benign and give them all-zero EMBER
+>     # features, injecting label noise. Drop them and keep global_ids aligned.
+>     mal_set   = set(s.strip().lower() for s in malware_ids)
+>     keep      = master_df["is_malware"].notna().to_numpy()
+>     n_dropped = int((~keep).sum())
+>     if n_dropped:
+>         dropped_ids = [g for g, k in zip(global_ids, keep) if not k]
+>         dropped_mal = sum(1 for g in dropped_ids if str(g).lower() in mal_set)
+>         print(f"Dropped {n_dropped} ids absent from master_df "
+>               f"({dropped_mal} malware, {n_dropped - dropped_mal} benign)")
+>     master_df  = master_df[keep]
+>     global_ids = [g for g, k in zip(global_ids, keep) if k]
+> 
+>     n_mal_eff = int((master_df["is_malware"] == 1).sum())
+>     print(f"Corpus after cleaning: {len(global_ids)} "
+>           f"(malware: {n_mal_eff} benign: {len(global_ids) - n_mal_eff})")
+>     assert len(global_ids) == len(master_df), "global_ids and master_df must stay aligned"
+> 
+>     
+959c981,984
+< 
+---
+>     nan_mask = master_df["is_malware"].isna()
+>     print("NaN rows:", nan_mask.sum())
+>     print("in malware list:", master_df.index[nan_mask].str.lower().isin(mal_set).sum())
+>     print("EMBER all-zero for those:", (master_df.loc[nan_mask, ember_cols].isna().all(axis=1)).sum())
+967c992
+<     X_tab_retr=np.concatenate([X_tab,Y_type],axis=1)
+---
+>     # X_tab_retr=np.concatenate([X_tab,Y_type],axis=1)
+996,997c1021,1022
+<     mal_map, unmapped = remap_malconv_map_to_sha(mal_map_raw, filename_to_sha)
+<     print("MalConv remap unmapped:", unmapped, "final keys:", len(mal_map))
+---
+>     mal_map, kept_sha_mal, unmapped = remap_malconv_map_to_sha(mal_map_raw, filename_to_sha)
+>     print("MalConv remap: kept_sha:", kept_sha_mal, "unmapped:", unmapped, "final keys:", len(mal_map))
+1019a1045,1048
+>     for j, nm in enumerate(["mal","safe","n2v"]):
+>         print(nm, "on malware:", masks[y_bin==1, j].mean(),
+>                 "| on benign:", masks[y_bin==0, j].mean())
+>         print("all three available:", (masks.sum(1)==3).mean())
+1022c1051,1056
+<     X_tab_retr=np.concatenate([X_tab, Y_type],axis=1)
+---
+>     # X_tab_retr=np.concatenate([X_tab, Y_type],axis=1)
+>     X_tab_retr=X_tab
+>     assert X_tab_retr.shape[1] == X_tab.shape[1], \
+>         "Y_type must NOT be in the retrieval-gate input"
+>     not np.array_equal(X_tab_retr[:, -Y_type.shape[1]:], Y_type), \
+>         "Retrieval-gate input still contains the ground-truth tags — leak!"
+1065,1066c1099,1100
+<         w_retr_max=0.2,      # safer than 0.5
+<         ckpt_path="best_moe.pt",
+---
+>         w_retr_max=1.0,      # safer than 0.5
+>         ckpt_path="/Users/amangolani/Downloads/best_moe_v3.pt",
+1071c1105
+<     print("saved as best_moe.pt")
+---
+>     print("saved as best_moe_v2.pt in Downloads")

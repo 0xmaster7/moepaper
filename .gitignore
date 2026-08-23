@@ -32,3 +32,12 @@ test_disassembly.txt
 # Large CSV Datasets (>100MB)
 merged.csv
 benign_ember_features.csv
+
+# Heavy Embedding Datasets
+embeddings/
+embeddings_benign/
+malware_embeddings/
+benignware_embeddings/
+embeddings_with_ids.npy
+benign_embeddings_with_ids.npy
+

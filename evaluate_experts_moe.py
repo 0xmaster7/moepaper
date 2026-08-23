@@ -21,30 +21,30 @@ faulthandler.enable()
 import re
 import numpy as np
 import pandas as pd
-import faiss
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import faiss
 from pathlib import Path
 from collections import Counter
 
 # ============================================================
 # CONFIG  — mirror your MoE_Training_dataset_form.py paths
 # ============================================================
-MASTER_CSV        = Path("/Users/amangolani/Downloads/merged.csv")
-COLUMN_NAMES_TXT  = Path("/Users/amangolani/Downloads/Benign Ember/column_names_ember.txt")
+MASTER_CSV        = Path("merged.csv")
+COLUMN_NAMES_TXT  = Path("column_names_ember.txt")
 
-SAFE_DIR_MAL      = Path("/Users/amangolani/RevEnggSorel/SAFE/embeddings")
-SAFE_DIR_BEN      = Path("/Users/amangolani/RevEnggSorel/SAFE/embeddings_benign")
-MALCONV_DIR_MAL   = Path("/Users/amangolani/Downloads/malware_embeddings")
-MALCONV_DIR_BEN   = Path("/Users/amangolani/Downloads/benignware_embeddings")
-N2V_MALWARE_NPY   = Path("/Users/amangolani/Downloads/embeddings_with_ids.npy")
-N2V_BENIGN_NPY    = Path("/Users/amangolani/Downloads/benign_embeddings_with_ids.npy")
-BEN_TABULAR_CSV   = Path("/Users/amangolani/Downloads/Benign Ember/benign_ember_features.csv")
-MALWARE_HASHES_TXT= Path("/Users/amangolani/SAFE_utils/MoE-based-Malware-classification/sha_list.txt")
-BENIGN_HASHES_CSV = Path("/Users/amangolani/RevEnggSorel/SAFE/benign_hashes.csv")
+SAFE_DIR_MAL      = Path("embeddings")
+SAFE_DIR_BEN      = Path("embeddings_benign")
+MALCONV_DIR_MAL   = Path("malware_embeddings")
+MALCONV_DIR_BEN   = Path("benignware_embeddings")
+N2V_MALWARE_NPY   = Path("embeddings_with_ids.npy")
+N2V_BENIGN_NPY    = Path("benign_embeddings_with_ids.npy")
+BEN_TABULAR_CSV   = Path("benign_ember_features.csv")
+MALWARE_HASHES_TXT= Path("sha_list.txt")
+BENIGN_HASHES_CSV = Path("benign_hashes.csv")
 
-MOE_CKPT          = Path("/Users/amangolani/Desktop/best_moe_test.pt")
+MOE_CKPT          = Path("best_moe.pt")
 
 D_COMMON   = 256
 K_VALUES   = [1, 3, 5, 10]       # which @k values to report
@@ -603,7 +603,8 @@ def main():
     masks = np.stack([m_mal, m_safe, m_n2v], axis=1).astype(np.float32)
     X_tab = np.concatenate([X_tab, masks], axis=1)
     X_tab_bin=X_tab
-    X_tab_retr=np.concatenate([X_tab,Y_type], axis=1)
+    # X_tab_retr=np.concatenate([X_tab,Y_type], axis=1)
+    X_tab_retr=X_tab
 
     # ----------------------------------------------------------
     # 4. Train / val / test split

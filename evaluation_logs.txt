@@ -1,0 +1,162 @@
+these results are from amans script modified with saturation and temperature NOT keshavs
+
+
+below is @ 30 percent dropout
+
+
+Global IDs: 9441 (mal=3000, ben=6476)
+[unmapped benign SAFE] OneDriveSetup
+[bad benign SAFE npy] 7za -> Failed to interpret file PosixPath('embeddings_benign/7za/7za/binary_embedding.npy') as a pickle
+[unmapped benign SAFE] MRT
+[unmapped benign SAFE] MicrosoftEdge_X64_142.0.3595.94
+[unmapped benign SAFE] MicrosoftEdge_X64_143.0.3650.75
+SAFE  coverage: 0.385
+MalConv coverage: 0.997
+N2V   coverage: 0.543
+Split — train: 6609, val: 1416, test: 1416
+
+Building per-expert FAISS indices...
+  All three built.
+
+Loading MoE checkpoint from best_moe.pt ...
+loaded successfully
+  MoE FAISS index built.
+  Indices saved: faiss_safe.bin, faiss_malconv.bin, faiss_n2v.bin, faiss_moe.bin
+
+Running evaluation on test split...
+
+============================================================
+  Expert 1 — SAFE (CFG + Node2Vec)
+============================================================
+   k   Precision        nDCG        F1    Accuracy
+--------------------------------------------------
+   1      0.9153      0.9153    0.9153      0.9153
+   3      0.9131      0.9426    0.9131      0.9202
+   5      0.9069      0.9432    0.9069      0.9188
+  10      0.8410      0.9431    0.8410      0.9181
+
+============================================================
+  Expert 2 — MalConv (raw bytes)
+============================================================
+   k   Precision        nDCG        F1    Accuracy
+--------------------------------------------------
+   1      0.8997      0.8997    0.8997      0.8997
+   3      0.8861      0.9397    0.8861      0.9040
+   5      0.8681      0.9429    0.8681      0.9047
+  10      0.8503      0.9429    0.8503      0.9040
+
+============================================================
+  Expert 3 — Node2Vec (import graph)
+============================================================
+   k   Precision        nDCG        F1    Accuracy
+--------------------------------------------------
+   1      0.8658      0.8658    0.8658      0.8658
+   3      0.8566      0.8857    0.8566      0.8679
+   5      0.8521      0.8866    0.8521      0.8630
+  10      0.8189      0.9118    0.8189      0.8644
+
+============================================================
+  MoE — Gated soft fusion
+============================================================
+   k   Precision        nDCG        F1    Accuracy
+--------------------------------------------------
+   1      0.8778      0.8778    0.8778      0.8778
+   3      0.8543      0.9255    0.8543      0.8785
+   5      0.8417      0.9296    0.8417      0.8799
+  10      0.8189      0.9291    0.8189      0.8799
+
+============================================================
+  Summary — nDCG@k comparison
+============================================================
+   k      SAFE   MalConv       N2V       MoE
+----------------------------------------------
+   1  *0.9153   0.8997   0.8658   0.8778
+   3  *0.9426   0.9397   0.8857   0.9255
+   5  *0.9432   0.9429   0.8866   0.9296
+  10  *0.9431   0.9429   0.9118   0.9291
+
+  (* = best for that k)
+
+
+
+
+
+
+-----------------------------------------------------------------
+-----------------------------------------------------------------
+
+now @ 40 percent dropout
+
+
+Global IDs: 9441 (mal=3000, ben=6476)
+[unmapped benign SAFE] OneDriveSetup
+[bad benign SAFE npy] 7za -> Failed to interpret file PosixPath('embeddings_benign/7za/7za/binary_embedding.npy') as a pickle
+[unmapped benign SAFE] MRT
+[unmapped benign SAFE] MicrosoftEdge_X64_142.0.3595.94
+[unmapped benign SAFE] MicrosoftEdge_X64_143.0.3650.75
+SAFE  coverage: 0.385
+MalConv coverage: 0.997
+N2V   coverage: 0.543
+Split — train: 6609, val: 1416, test: 1416
+
+Building per-expert FAISS indices...
+  All three built.
+
+Loading MoE checkpoint from best_moe.pt ...
+loaded successfully
+  MoE FAISS index built.
+  Indices saved: faiss_safe.bin, faiss_malconv.bin, faiss_n2v.bin, faiss_moe.bin
+
+Running evaluation on test split...
+
+============================================================
+  Expert 1 — SAFE (CFG + Node2Vec)
+============================================================
+   k   Precision        nDCG        F1    Accuracy
+--------------------------------------------------
+   1      0.9153      0.9153    0.9153      0.9153
+   3      0.9131      0.9426    0.9131      0.9202
+   5      0.9069      0.9432    0.9069      0.9188
+  10      0.8410      0.9431    0.8410      0.9181
+
+============================================================
+  Expert 2 — MalConv (raw bytes)
+============================================================
+   k   Precision        nDCG        F1    Accuracy
+--------------------------------------------------
+   1      0.8997      0.8997    0.8997      0.8997
+   3      0.8861      0.9397    0.8861      0.9040
+   5      0.8681      0.9429    0.8681      0.9047
+  10      0.8503      0.9429    0.8503      0.9040
+
+============================================================
+  Expert 3 — Node2Vec (import graph)
+============================================================
+   k   Precision        nDCG        F1    Accuracy
+--------------------------------------------------
+   1      0.8658      0.8658    0.8658      0.8658
+   3      0.8566      0.8857    0.8566      0.8679
+   5      0.8521      0.8866    0.8521      0.8630
+  10      0.8189      0.9118    0.8189      0.8644
+
+============================================================
+  MoE — Gated soft fusion
+============================================================
+   k   Precision        nDCG        F1    Accuracy
+--------------------------------------------------
+   1      0.9379      0.9379    0.9379      0.9379
+   3      0.9291      0.9616    0.9291      0.9492
+   5      0.9222      0.9642    0.9222      0.9407
+  10      0.9071      0.9630    0.9071      0.9428
+
+============================================================
+  Summary — nDCG@k comparison
+============================================================
+   k      SAFE   MalConv       N2V       MoE
+----------------------------------------------
+   1   0.9153   0.8997   0.8658  *0.9379
+   3   0.9426   0.9397   0.8857  *0.9616
+   5   0.9432   0.9429   0.8866  *0.9642
+  10   0.9431   0.9429   0.9118  *0.9630
+
+  (* = best for that k)
