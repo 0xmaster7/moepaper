@@ -41,3 +41,7 @@ benignware_embeddings/
 embeddings_with_ids.npy
 benign_embeddings_with_ids.npy
 
+
+# Diff Logs
+*_diff.txt
+

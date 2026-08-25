@@ -1,0 +1,74 @@
+Global IDs: 9441 (mal=3000, ben=6476)
+Dropped 242 ids absent from master_df (230 malware, 12 benign)
+Corpus after cleaning: 9199 (malware: 2770 benign: 6429)
+[unmapped benign SAFE] OneDriveSetup
+[bad benign SAFE npy] 7za -> Failed to interpret file PosixPath('embeddings_benign/7za/7za/binary_embedding.npy') as a pickle
+[unmapped benign SAFE] MRT
+[unmapped benign SAFE] MicrosoftEdge_X64_142.0.3595.94
+[unmapped benign SAFE] MicrosoftEdge_X64_143.0.3650.75
+SAFE  coverage: 0.372
+MalConv coverage: 1.000
+N2V   coverage: 0.536
+Split — train: 6441, val: 1379, test: 1379  (test malware: 415) [loaded from splits.npz]
+
+Building per-expert FAISS indices...
+  All three built.
+
+Loading MoE checkpoint from best_moe.pt ...
+loaded successfully
+  MoE FAISS index built.
+  Indices saved: faiss_safe.bin, faiss_malconv.bin, faiss_n2v.bin, faiss_moe.bin
+
+Running evaluation on test split...
+
+============================================================
+  Expert 1 — SAFE (CFG + Node2Vec)
+============================================================
+   k   Precision        nDCG        F1    Accuracy
+--------------------------------------------------
+   1      0.3590      0.3590    0.3590      0.3590
+   3      0.5383      0.7470    0.5383      0.3640
+   5      0.4573      0.7489    0.4573      0.3648
+  10      0.6170      0.7507    0.6170      0.3619
+
+============================================================
+  Expert 2 — MalConv (raw bytes)
+============================================================
+   k   Precision        nDCG        F1    Accuracy
+--------------------------------------------------
+   1      0.8934      0.8934    0.8934      0.8934
+   3      0.8772      0.9260    0.8772      0.8999
+   5      0.8640      0.9323    0.8640      0.8941
+  10      0.8482      0.9353    0.8482      0.8956
+
+============================================================
+  Expert 3 — Node2Vec (import graph)
+============================================================
+   k   Precision        nDCG        F1    Accuracy
+--------------------------------------------------
+   1      0.5635      0.5635    0.5635      0.5635
+   3      0.6630      0.8204    0.6630      0.5678
+   5      0.6194      0.8220    0.6194      0.5678
+  10      0.7060      0.8238    0.7060      0.5700
+
+============================================================
+  MoE — Gated soft fusion
+============================================================
+   k   Precision        nDCG        F1    Accuracy
+--------------------------------------------------
+   1      0.9195      0.9195    0.9195      0.9195
+   3      0.9077      0.9482    0.9077      0.9253
+   5      0.8978      0.9491    0.8978      0.9253
+  10      0.8867      0.9496    0.8867      0.9181
+
+============================================================
+  Summary — nDCG@k comparison
+============================================================
+   k      SAFE   MalConv       N2V       MoE
+----------------------------------------------
+   1   0.3590   0.8934   0.5635  *0.9195
+   3   0.7470   0.9260   0.8204  *0.9482
+   5   0.7489   0.9323   0.8220  *0.9491
+  10   0.7507   0.9353   0.8238  *0.9496
+
+  (* = best for that k)

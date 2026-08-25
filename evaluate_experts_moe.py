@@ -338,15 +338,25 @@ def print_results(name: str, results: dict):
 # ============================================================
 # Train/val/test split  (mirrors your existing split logic)
 # ============================================================
-def make_splits(n, val_frac=0.15, test_frac=0.15, seed=42):
-    rng  = np.random.default_rng(seed)
-    idx  = np.arange(n)
-    rng.shuffle(idx)
-    n_val  = int(n * val_frac)
-    n_test = int(n * test_frac)
-    test_idx  = idx[:n_test]
-    val_idx   = idx[n_test:n_test + n_val]
-    train_idx = idx[n_test + n_val:]
+def load_splits(global_ids, path="splits.npz"):
+    """
+    Load the exact partition persisted by the training script.
+
+    The evaluation script must NEVER recompute its own split: the model was
+    trained on train_idx and selected on val_idx, so any independently derived
+    'test' set would contain samples the model has already seen. The stored
+    global_ids act as a fingerprint — a mismatch means the corpus changed since
+    training and the checkpoint is not valid for this data.
+    """
+    d = np.load(path, allow_pickle=True)
+    saved_ids = [str(s) for s in d["global_ids"]]
+    if saved_ids != [str(s) for s in global_ids]:
+        raise RuntimeError(
+            f"Corpus mismatch: splits.npz holds {len(saved_ids)} ids, current run has "
+            f"{len(global_ids)}. Retrain to regenerate splits.npz before evaluating.")
+    train_idx = d["train_idx"]; val_idx = d["val_idx"]; test_idx = d["test_idx"]
+    assert len(np.intersect1d(train_idx, test_idx)) == 0, "test/train overlap"
+    assert len(np.intersect1d(val_idx,   test_idx)) == 0, "test/val overlap"
     return train_idx, val_idx, test_idx
 
 
@@ -548,6 +558,27 @@ def main():
                  .reindex(global_ids))
     master_df["sha256"] = master_df.index
 
+    # ---- Drop ids absent from master_tabular.csv -------------------------------
+    # MUST match the identical block in the training script. reindex() fabricates
+    # all-NaN placeholder rows for ids not present in the CSV; fillna(0) would then
+    # label them benign with all-zero EMBER features. Dropping them here keeps the
+    # corpus (and therefore the seed-42 permutation) identical to training.
+    mal_set   = set(s.strip().lower() for s in malware_ids)
+    keep      = master_df["is_malware"].notna().to_numpy()
+    n_dropped = int((~keep).sum())
+    if n_dropped:
+        dropped_ids = [g for g, k in zip(global_ids, keep) if not k]
+        dropped_mal = sum(1 for g in dropped_ids if str(g).lower() in mal_set)
+        print(f"Dropped {n_dropped} ids absent from master_df "
+              f"({dropped_mal} malware, {n_dropped - dropped_mal} benign)")
+    master_df  = master_df[keep]
+    global_ids = [g for g, k in zip(global_ids, keep) if k]
+
+    n_mal_eff = int((master_df["is_malware"] == 1).sum())
+    print(f"Corpus after cleaning: {len(global_ids)} "
+          f"(malware: {n_mal_eff} benign: {len(global_ids) - n_mal_eff})")
+    assert len(global_ids) == len(master_df), "global_ids and master_df must stay aligned"
+
     # Binary label for accuracy@k
     y_bin = master_df["is_malware"].fillna(0).astype(int).to_numpy()
 
@@ -610,8 +641,9 @@ def main():
     # 4. Train / val / test split
     # ----------------------------------------------------------
     N = len(global_ids)
-    train_idx, val_idx, test_idx = make_splits(N, VAL_FRAC, TEST_FRAC, SEED)
-    print(f"Split — train: {len(train_idx)}, val: {len(val_idx)}, test: {len(test_idx)}")
+    train_idx, val_idx, test_idx = load_splits(global_ids, "splits.npz")
+    print(f"Split — train: {len(train_idx)}, val: {len(val_idx)}, test: {len(test_idx)}"
+          f"  (test malware: {int(y_bin[test_idx].sum())}) [loaded from splits.npz]")
 
     # Index = train + val  (what the retriever "knows")
     index_idx = np.concatenate([train_idx, val_idx])
