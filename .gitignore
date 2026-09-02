@@ -45,3 +45,19 @@ benign_embeddings_with_ids.npy
 # Diff Logs
 *_diff.txt
 
+# PyTorch Checkpoints
+*.pt
+!best_moe.pt
+
+# Evaluation and Training Logs
+*_logs.txt
+*_logs_*.txt
+evaluate_logs_new.txt
+moe_train_dropout_*.txt
+evaluation_logs.txt
+
+# Precomputed Splits
+splits.npz
+
+# Temporary Experiments & Proofs
+prove_baseline_drop.py
