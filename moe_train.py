@@ -14,20 +14,20 @@ from torch.utils.data import WeightedRandomSampler
 # =========================
 # CONFIG 
 # =========================
-MALWARE_HASHES_TXT = Path("sha_list.txt")          # SOREL malware sha256 list (one per line)
-BENIGN_HASHES_CSV  = Path("benign_hashes.csv")     # benign sha256 list (one column or a column named sha256)
+MALWARE_HASHES_TXT = Path("/Users/amangolani/MOE_Paper/moepaper/MoE_project_data/sha_list.txt")          # SOREL malware sha256 list (one per line)
+BENIGN_HASHES_CSV  = Path("/Users/amangolani/MOE_Paper/moepaper/MoE_project_data/benign_hashes.csv")     # benign sha256 list (one column or a column named sha256)
 
-MAL_TABULAR_CSV = Path("dataset_emberSorel_merged.csv")     # malware table
-BEN_TABULAR_CSV = Path("benign_ember_features.csv")     # benign EMBER table you generated (f0..f2567 + zeros labels)
-MASTER_TABULAR_CSV=Path("merged.csv")
-SAFE_DIR_MAL = Path("embeddings")                           # embeddings_dir/<sha256>/binary_embedding.npy
-SAFE_DIR_BEN=Path("embeddings_benign")
+MAL_TABULAR_CSV = Path("/Users/amangolani/MOE_Paper/moepaper/MoE_project_data/dataset_emberSorel_merged.csv")     # malware table
+BEN_TABULAR_CSV = Path("/Users/amangolani/MOE_Paper/moepaper/MoE_project_data/benign_ember_features.csv")     # benign EMBER table you generated (f0..f2567 + zeros labels)
+MASTER_TABULAR_CSV=Path("/Users/amangolani/MOE_Paper/moepaper/MoE_project_data/merged.csv")
+SAFE_DIR_MAL = Path("/Users/amangolani/MOE_Paper/moepaper/MoE_project_data/embeddings")                           # embeddings_dir/<sha256>/binary_embedding.npy
+SAFE_DIR_BEN=Path("/Users/amangolani/MOE_Paper/moepaper/MoE_project_data/embeddings_benign")
 
-MALCONV_DIR_MAL=Path("malware_embeddings")
-MALCONV_DIR_BEN = Path("benignware_embeddings")                    # <sha256>.npy (pooled malconv emb); update if mixed
-COLUMN_NAMES_TXT= Path("column_names_ember.txt")
-N2V_MALWARE_NPY = Path("embeddings_with_ids.npy")              # object array (N,2): [sha256, emb]
-N2V_BENIGN_NPY  = Path("benign_embeddings_with_ids.npy")       # object array (N,2): [sha256, emb]
+MALCONV_DIR_MAL=Path("/Users/amangolani/MOE_Paper/moepaper/MoE_project_data/malware_embeddings")
+MALCONV_DIR_BEN = Path("/Users/amangolani/MOE_Paper/moepaper/MoE_project_data/benignware_embeddings")                    # <sha256>.npy (pooled malconv emb); update if mixed
+COLUMN_NAMES_TXT= Path("/Users/amangolani/MOE_Paper/moepaper/MoE_project_data/column_names_ember.txt")
+N2V_MALWARE_NPY = Path("/Users/amangolani/MOE_Paper/moepaper/MoE_project_data/embeddings_with_ids.npy")              # object array (N,2): [sha256, emb]
+N2V_BENIGN_NPY  = Path("/Users/amangolani/MOE_Paper/moepaper/MoE_project_data/benign_embeddings_with_ids.npy")       # object array (N,2): [sha256, emb]
 
 BATCH_SIZE = 64
 EPOCHS = 10

@@ -1,57 +1,55 @@
-import os
-import re
-import subprocess
-import shutil
+import os, re, sys, shutil, subprocess
 
-dropouts = [0.1, 0.2, 0.3, 0.4]
+dropouts   = [0.1, 0.2, 0.3, 0.4]
 train_file = "moe_train.py"
-eval_file = "evaluate_experts_moe.py"
-final_log = "final_dropout_evaluations.txt"
+eval_file  = "evaluate_experts_moe_files.py"
+final_log  = "final_dropout_evaluations_set2.txt"
 
-# Clear the final log if it exists
+env = dict(os.environ, KMP_DUPLICATE_LIB_OK="TRUE", OMP_NUM_THREADS="1")
+
+def patch(path, pattern, replacement, label):
+    src = open(path).read()
+    new, n = re.subn(pattern, replacement, src)
+    if n == 0:
+        sys.exit(f"ABORT: no match for {label} in {path}")
+    open(path, "w").write(new)
+    print(f"  set {label} in {path}")
+
+# force val-split evaluation for the whole sweep
+patch(eval_file, r'EVAL_SPLIT\s*=\s*["\'](val|test)["\']',
+      'EVAL_SPLIT = "val"', 'EVAL_SPLIT="val"')
+
 with open(final_log, "w") as f:
-    f.write("=== MoE Dropout Ablation Study ===\n\n")
+    f.write("=== MoE Dropout Ablation Study (selection on VAL) ===\n")
 
 for d in dropouts:
-    print(f"\n{'='*50}")
-    print(f"Starting experiment for EXPERT_DROPOUT = {d}")
-    print(f"{'='*50}")
-    
-    # 1. Modify the training script
-    with open(train_file, "r") as f:
-        content = f.read()
-    
-    # Use regex to find and replace the EXPERT_DROPOUT assignment
-    new_content = re.sub(r'EXPERT_DROPOUT\s*=\s*[0-9.]+', f'EXPERT_DROPOUT = {d}', content)
-    
-    with open(train_file, "w") as f:
-        f.write(new_content)
-        
-    print(f"Successfully updated {train_file} to use EXPERT_DROPOUT = {d}")
-    
-    # 2. Run the training script
-    train_log = f"moe_train_dropout_{int(d*100)}.txt"
-    print(f"Training model... (This will take ~50 epochs. Logs saved to {train_log})")
-    with open(train_log, "w") as f:
-        subprocess.run(["python3", train_file], stdout=f, stderr=subprocess.STDOUT)
-    print("Training finished!")
-    
-    # Backup the checkpoint so it isn't overwritten!
-    backup_ckpt = f"best_moe_{int(d*100)}.pt"
-    if os.path.exists("best_moe.pt"):
-        shutil.copy("best_moe.pt", backup_ckpt)
-        print(f"Backed up checkpoint to {backup_ckpt}")
-    
-    # 3. Append a header to the final log
-    with open(final_log, "a") as f:
-        f.write(f"\n\n{'#'*60}\n")
-        f.write(f"### EVALUATION RESULTS FOR EXPERT_DROPOUT = {d}\n")
-        f.write(f"{'#'*60}\n\n")
-    
-    # 4. Run the evaluation script and append to final log
-    print(f"Evaluating model... (Appending to {final_log})")
-    with open(final_log, "a") as f:
-        subprocess.run(["python3", eval_file], stdout=f, stderr=subprocess.STDOUT)
-    print(f"Evaluation finished for dropout {d}!")
+    print(f"\n{'='*50}\nEXPERT_DROPOUT = {d}\n{'='*50}")
 
-print("\n\nAll experiments completed successfully! Please check final_dropout_evaluations.txt")
+    patch(train_file, r'EXPERT_DROPOUT\s*=\s*[0-9.]+',
+          f'EXPERT_DROPOUT = {d}', f'EXPERT_DROPOUT={d}')
+
+    # remove stale checkpoint so a crash can't leave the previous model behind
+    if os.path.exists("best_moe.pt"):
+        os.remove("best_moe.pt")
+
+    train_log = f"moe_train_dropout_{int(d*100)}.txt"
+    print(f"  training -> {train_log}")
+    with open(train_log, "w") as f:
+        r = subprocess.run([sys.executable, train_file], stdout=f,
+                           stderr=subprocess.STDOUT, env=env)
+    if r.returncode != 0 or not os.path.exists("best_moe.pt"):
+        sys.exit(f"ABORT: training failed at dropout {d} — see {train_log}")
+
+    shutil.copy("best_moe.pt", f"best_moe_{int(d*100)}.pt")
+
+    with open(final_log, "a") as f:
+        f.write(f"\n\n{'#'*60}\n### EXPERT_DROPOUT = {d}  (VAL split)\n{'#'*60}\n\n")
+        r = subprocess.run([sys.executable, eval_file], stdout=f,
+                           stderr=subprocess.STDOUT, env=env)
+    if r.returncode != 0:
+        sys.exit(f"ABORT: evaluation failed at dropout {d} — see {final_log}")
+
+    print(f"  done: {d}")
+
+print(f"\nSweep complete. Compare val nDCG@10 in {final_log}, pick the winner,")
+print("then set EVAL_SPLIT='test' and evaluate ONLY that checkpoint.")
