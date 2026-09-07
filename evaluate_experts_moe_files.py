@@ -31,6 +31,7 @@ import faiss
 from pathlib import Path
 from collections import Counter
 
+
 # ============================================================
 # CONFIG  — mirror your MoE_Training_dataset_form.py paths
 # ============================================================
@@ -47,20 +48,20 @@ BEN_TABULAR_CSV   = Path("/Users/amangolani/MOE_Paper/moepaper/MoE_project_data/
 MALWARE_HASHES_TXT= Path("/Users/amangolani/MOE_Paper/moepaper/MoE_project_data/sha_list.txt")
 BENIGN_HASHES_CSV = Path("/Users/amangolani/MOE_Paper/moepaper/MoE_project_data/benign_hashes.csv")
 
-MOE_CKPT          = Path("/Users/amangolani/MOE_Paper/moepaper/best_moe.pt")
+MOE_CKPT          = Path("/Users/amangolani/MOE_Paper/moepaper/best_moe_20.pt")
 
 D_COMMON   = 256
 K_VALUES   = [1, 3, 5, 10]       # which @k values to report
 VAL_FRAC   = 0.15
 TEST_FRAC  = 0.15
 SEED       = 42
-
+MODEL_SEED = 42
 # Which partition to query with.
 #   "val"  -> hyperparameter selection (e.g. the expert-dropout sweep).
 #   "test" -> final reporting. Run this ONCE, after the configuration is fixed.
 # Selecting a configuration by its test score biases the reported number:
 # it becomes the maximum over the sweep rather than an unbiased estimate.
-EVAL_SPLIT = "val"
+EVAL_SPLIT = "test"
 
 COLS_TYPE = [
     "adware", "flooder", "ransomware", "dropper", "spyware",

@@ -1,5 +1,6 @@
 # moe_train_precomputed.py
 
+import os
 import csv
 import hashlib
 from pathlib import Path
@@ -11,9 +12,21 @@ import torch.nn.functional as F
 from torch.utils.data import Dataset, DataLoader
 from collections import Counter
 from torch.utils.data import WeightedRandomSampler
+import random
 # =========================
 # CONFIG 
 # =========================
+# ---- Seeds --------------------------------------------------------------
+# MODEL_SEED controls weight init, batch order, sampler draws and dropout
+# masks. Vary it (42, 43, 44) to measure run-to-run variance.
+#
+# SPLIT_SEED controls which samples land in train/val/test. It must NEVER
+# change: if it moved with MODEL_SEED, each run would be evaluated on a
+# different test set and the spread would confound model variance with
+# test-set difficulty.
+MODEL_SEED = 44
+SPLIT_SEED = 42      # frozen - do not vary
+# -------------------------------------------------------------------------
 MALWARE_HASHES_TXT = Path("/Users/amangolani/MOE_Paper/moepaper/MoE_project_data/sha_list.txt")          # SOREL malware sha256 list (one per line)
 BENIGN_HASHES_CSV  = Path("/Users/amangolani/MOE_Paper/moepaper/MoE_project_data/benign_hashes.csv")     # benign sha256 list (one column or a column named sha256)
 
@@ -527,7 +540,7 @@ def train_with_val(
     ckpt_path="best_moe.pt",
     save_by="val_sup",
 ):
-    EXPERT_DROPOUT = 0.4
+    EXPERT_DROPOUT = 0.2      # selected on the validation partition
     model.to(device)
     opt = torch.optim.AdamW([
         {"params": model.gate_bin.parameters(),       "lr": lr},
@@ -940,7 +953,10 @@ def remap_n2v_to_sha(n2v_map: dict, filename_to_sha: dict):
 # =========================
 # Master DF + training run
 # =========================
-def main():
+def main():    
+    torch.manual_seed(MODEL_SEED)
+    np.random.seed(MODEL_SEED)
+    random.seed(MODEL_SEED)
     # 1) global_ids = union(malware sha list + benign sha list)
     malware_ids = load_sha_list_txt(MALWARE_HASHES_TXT)
     import re
@@ -1077,17 +1093,26 @@ def main():
     not np.array_equal(X_tab_retr[:, -Y_type.shape[1]:], Y_type), \
         "Retrieval-gate input still contains the ground-truth tags — leak!"
     # 7) Train
-    train_idx, val_idx, test_idx = make_train_val_test_split(
-        y_bin, val_frac=0.15, test_frac=0.15, seed=42)
+    # The split must be identical across seed runs. Generate it once; every
+    # later run loads the same file, so only the model differs between runs.
+    if os.path.exists("splits.npz"):
+        _d = np.load("splits.npz", allow_pickle=True)
+        train_idx = _d["train_idx"]; val_idx = _d["val_idx"]; test_idx = _d["test_idx"]
+        if [str(s) for s in _d["global_ids"]] != [str(s) for s in global_ids]:
+            raise RuntimeError(
+                "splits.npz was built on a different corpus. Delete it to regenerate "
+                "— but note this invalidates comparison with earlier checkpoints.")
+        print(f"Split — loaded splits.npz: train {len(train_idx)}, val {len(val_idx)}, "
+              f"test {len(test_idx)} (unchanged across seeds)")
+    else:
+        train_idx, val_idx, test_idx = make_train_val_test_split(
+            y_bin, val_frac=0.15, test_frac=0.15, seed=SPLIT_SEED)
+        np.savez("splits.npz",
+                 train_idx=train_idx, val_idx=val_idx, test_idx=test_idx,
+                 global_ids=np.array(global_ids, dtype=object), seed=SPLIT_SEED)
+        print(f"Split — train: {len(train_idx)}, val: {len(val_idx)}, test: {len(test_idx)} "
+              f"(test malware: {int(y_bin[test_idx].sum())}) -> saved splits.npz")
 
-    # Persist the exact splits so evaluation cannot silently recompute a different
-    # partition. The id list is stored alongside as a fingerprint: if the corpus
-    # changes, the eval script will detect the mismatch instead of misaligning.
-    np.savez("splits.npz",
-             train_idx=train_idx, val_idx=val_idx, test_idx=test_idx,
-             global_ids=np.array(global_ids, dtype=object), seed=42)
-    print(f"Split — train: {len(train_idx)}, val: {len(val_idx)}, test: {len(test_idx)} "
-          f"(test malware: {int(y_bin[test_idx].sum())}) -> saved splits.npz")
 
     ds = PrecomputedExpertsDataset(X_tab_bin, X_tab_retr, E_mal, E_safe, E_n2v, y_bin, Y_type, masks)
     family_counts  = Y_type[train_idx].sum(axis=0).clip(1)   # (11,) counts per family in train set only
