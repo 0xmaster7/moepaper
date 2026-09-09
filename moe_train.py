@@ -540,7 +540,7 @@ def train_with_val(
     ckpt_path="best_moe.pt",
     save_by="val_sup",
 ):
-    EXPERT_DROPOUT = 0.2      # selected on the validation partition
+    EXPERT_DROPOUT = 0.3      # selected on the validation partition
     model.to(device)
     opt = torch.optim.AdamW([
         {"params": model.gate_bin.parameters(),       "lr": lr},

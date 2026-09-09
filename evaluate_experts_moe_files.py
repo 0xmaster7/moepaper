@@ -48,7 +48,7 @@ BEN_TABULAR_CSV   = Path("/Users/amangolani/MOE_Paper/moepaper/MoE_project_data/
 MALWARE_HASHES_TXT= Path("/Users/amangolani/MOE_Paper/moepaper/MoE_project_data/sha_list.txt")
 BENIGN_HASHES_CSV = Path("/Users/amangolani/MOE_Paper/moepaper/MoE_project_data/benign_hashes.csv")
 
-MOE_CKPT          = Path("/Users/amangolani/MOE_Paper/moepaper/best_moe_20.pt")
+MOE_CKPT          = Path(os.environ.get("MOE_CKPT", "best_moe.pt"))
 
 D_COMMON   = 256
 K_VALUES   = [1, 3, 5, 10]       # which @k values to report

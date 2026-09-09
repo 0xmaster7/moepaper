@@ -1,5 +1,5 @@
 import os, re, sys, shutil, subprocess
-
+os.chdir(os.path.dirname(os.path.abspath(__file__)))
 dropouts   = [0.1, 0.2, 0.3, 0.4]
 train_file = "moe_train.py"
 eval_file  = "evaluate_experts_moe_files.py"
@@ -9,7 +9,7 @@ env = dict(os.environ, KMP_DUPLICATE_LIB_OK="TRUE", OMP_NUM_THREADS="1")
 
 def patch(path, pattern, replacement, label):
     src = open(path).read()
-    new, n = re.subn(pattern, replacement, src)
+    new, n = re.subn(pattern, replacement, src,count=1)
     if n == 0:
         sys.exit(f"ABORT: no match for {label} in {path}")
     open(path, "w").write(new)
@@ -40,12 +40,15 @@ for d in dropouts:
     if r.returncode != 0 or not os.path.exists("best_moe.pt"):
         sys.exit(f"ABORT: training failed at dropout {d} — see {train_log}")
 
-    shutil.copy("best_moe.pt", f"best_moe_{int(d*100)}.pt")
+    ckpt = f"best_moe_{int(d*100)}.pt"
+    shutil.copy("best_moe.pt", ckpt)
 
     with open(final_log, "a") as f:
         f.write(f"\n\n{'#'*60}\n### EXPERT_DROPOUT = {d}  (VAL split)\n{'#'*60}\n\n")
+        f.flush()
         r = subprocess.run([sys.executable, eval_file], stdout=f,
-                           stderr=subprocess.STDOUT, env=env)
+                           stderr=subprocess.STDOUT, env=dict(env, MOE_CKPT=ckpt))
+        f.flush()
     if r.returncode != 0:
         sys.exit(f"ABORT: evaluation failed at dropout {d} — see {final_log}")
 

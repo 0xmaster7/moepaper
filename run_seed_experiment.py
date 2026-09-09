@@ -13,7 +13,7 @@ import os, re, sys, shutil, subprocess
 os.chdir(os.path.dirname(os.path.abspath(__file__)))   # paths are relative to this file
 
 seeds       = [42, 43, 44]
-DROPOUT     = 0.2                      # fixed: chosen on val
+DROPOUT     = 0.3                      # fixed: chosen on val
 train_file  = "moe_train.py"
 eval_file   = "evaluate_experts_moe_files.py"
 final_log   = "final_seed_evaluations.txt"
@@ -81,7 +81,7 @@ for s in seeds:
         f.write(f"\n\n{'#'*60}\n### MODEL_SEED = {s}   (dropout {DROPOUT}, TEST split)\n{'#'*60}\n\n")
         f.flush()                          # header must reach disk before the child writes
         r = subprocess.run([sys.executable, eval_file], stdout=f,
-                           stderr=subprocess.STDOUT, env=env)
+                           stderr=subprocess.STDOUT, env=dict(env, MOE_CKPT=ckpt))
         f.flush()
     if r.returncode != 0:
         sys.exit(f"ABORT: evaluation failed at seed {s} — see {final_log}")
