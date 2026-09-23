@@ -1,0 +1,610 @@
+=== Final evaluations: dropout 0.3, TEST split ===
+
+
+############################################################
+### MODEL_SEED = 42  (best_moe_s42.pt)
+############################################################
+
+Global IDs: 9441 (mal=3000, ben=6476)
+Dropped 242 ids absent from master_df (230 malware, 12 benign)
+Corpus after cleaning: 9199 (malware: 2770 benign: 6429)
+[unmapped benign SAFE] OneDriveSetup
+[bad benign SAFE npy] 7za -> Failed to interpret file PosixPath('/Users/amangolani/MOE_Paper/moepaper/MoE_project_data/embeddings_benign/7za/7za/binary_embedding.npy') as a pickle
+[unmapped benign SAFE] MRT
+[unmapped benign SAFE] MicrosoftEdge_X64_142.0.3595.94
+[unmapped benign SAFE] MicrosoftEdge_X64_143.0.3650.75
+SAFE  coverage: 0.372
+MalConv coverage: 1.000
+N2V   coverage: 0.536
+Split — train: 6441, val: 1379, test: 1379  (test malware: 415) [loaded from splits.npz]
+Evaluating on 'test' split — index: 7820 samples, queries: 1379
+
+Loading MoE checkpoint from best_moe_s42.pt ...
+loaded successfully
+
+  multi-label subsets: val 395, test 394 (tagged malware only)
+  threshold sweep (validation):
+    t=0.10  micro-F1=0.6323  macro-F1=0.5879
+    t=0.15  micro-F1=0.6649  macro-F1=0.6098
+    t=0.20  micro-F1=0.6880  macro-F1=0.5864
+    t=0.25  micro-F1=0.6973  macro-F1=0.5777
+    t=0.30  micro-F1=0.7024  macro-F1=0.5842
+    t=0.35  micro-F1=0.6896  macro-F1=0.5682
+    t=0.40  micro-F1=0.6755  macro-F1=0.5519
+    t=0.45  micro-F1=0.6568  macro-F1=0.5371
+    t=0.50  micro-F1=0.6124  macro-F1=0.4357
+    t=0.55  micro-F1=0.5791  macro-F1=0.4080
+    t=0.60  micro-F1=0.5482  macro-F1=0.3774
+  -> selected threshold 0.30 (val micro-F1 0.7024)
+
+============================================================
+  Multi-label behaviour prediction (k=20, threshold=0.30, n=394)
+============================================================
+  micro-F1 0.6064 | macro-F1 0.4885 | mAP 0.5582
+  micro-precision 0.5752 | micro-recall 0.6411
+
+  per-label F1 (test support):
+    adware          F1=0.5561  n=91
+    flooder         F1=0.0000  n=4
+    ransomware      F1=0.4773  n=53
+    dropper         F1=0.6537  n=144
+    spyware         F1=0.6840  n=192
+    packed          F1=0.6211  n=155
+    crypto_miner    F1=0.1875  n=15
+    file_infector   F1=0.6149  n=132
+    installer       F1=0.4167  n=34
+    worm            F1=0.6183  n=147
+    downloader      F1=0.5437  n=89
+
+  NOTE: rare categories have small test support; their per-label
+        F1 is unstable and should be read alongside micro-F1.
+  MoE FAISS index built.
+
+============================================================
+  EXPERIMENT 1 - Binary detection (gate_bin + classifier head)
+============================================================
+  n=1379 (malware 415)  threshold=0.5
+  accuracy 0.8086  (all-benign baseline 0.6991)
+  malware precision 0.6444 | recall 0.8120 | F1 0.7186
+  ROC-AUC 0.8901
+  confusion  TP 337  FP 186  FN 78  TN 778
+
+============================================================
+  EXPERIMENT 2 - Behaviour-level retrieval (shared-tag relevance)
+============================================================
+  Query set: tagged malware in test. Index: train+val (all samples).
+
+  MoE  (queries 394, index 7820)
+     k   Precision     nDCG
+     1      0.7437   0.7437
+     3      0.7124   0.7190
+     5      0.7000   0.7088
+    10      0.6782   0.6908
+
+  SAFE  (queries 345, index 2904)
+     k   Precision     nDCG
+     1      0.8058   0.8058
+     3      0.7546   0.7669
+     5      0.7212   0.7402
+    10      0.6797   0.7050
+
+  MalConv  (queries 393, index 7820)
+     k   Precision     nDCG
+     1      0.7557   0.7557
+     3      0.6836   0.6992
+     5      0.6361   0.6624
+    10      0.5819   0.6155
+
+  Node2Vec  (queries 279, index 4209)
+     k   Precision     nDCG
+     1      0.6631   0.6631
+     3      0.6762   0.6739
+     5      0.6602   0.6632
+    10      0.6391   0.6471
+
+  MoE on SAFE-covered queries (345)
+     1      0.7623   0.7623
+     3      0.7295   0.7363
+     5      0.7142   0.7241
+    10      0.6907   0.7047
+
+  MoE on MalConv-covered queries (393)
+     1      0.7430   0.7430
+     3      0.7116   0.7183
+     5      0.6992   0.7081
+    10      0.6776   0.6902
+
+  MoE on Node2Vec-covered queries (279)
+     1      0.7778   0.7778
+     3      0.7551   0.7592
+     5      0.7548   0.7581
+    10      0.7369   0.7447
+
+============================================================
+  EXPERIMENT 3 - Gate weights
+============================================================
+  Mean renormalised weights on TEST, grouped by availability pattern
+  pattern (Mal,SAFE,N2V)     n    gate_bin [M S N]        gate_retr [M S N]
+  (np.int64(1), np.int64(1), np.int64(1))   372   [0.000 0.126 0.874]   [0.000 0.644 0.356]
+  (np.int64(1), np.int64(1), np.int64(0))   149   [0.339 0.661 0.000]   [0.000 1.000 0.000]
+  (np.int64(1), np.int64(0), np.int64(1))   348   [0.000 0.000 1.000]   [0.454 0.000 0.546]
+  (np.int64(1), np.int64(0), np.int64(0))   509   [1.000 0.000 0.000]   [1.000 0.000 0.000]
+  (np.int64(0), np.int64(0), np.int64(0))     1   [0.000 0.000 0.000]   [0.000 0.000 0.000]
+
+  Worked example (panel c): test malware row 230, SAFE missing
+                           MalConv      SAFE  Node2Vec
+  mask                       1.000     0.000     1.000
+  gate_bin raw               0.000     0.000     1.000
+  gate_bin renormalised      0.000     0.000     1.000
+  gate_retr raw              0.000     0.500     0.500
+  gate_retr renormalised     0.000     0.000     1.000
+
+  results saved -> final_evals_best_moe_s42.json
+
+Running evaluation on test split...
+
+  Evaluation subsets (queries / index entries):
+    SAFE     :   521 /  2904
+    MalConv  :  1378 /  7820
+    Node2Vec :   720 /  4209
+    MoE      :  1379 /  7820   (full partition)
+    NOTE: single-expert rows are computed on different subsets and
+          are therefore not directly comparable to one another.
+
+============================================================
+  Expert 1 — SAFE (function semantics)  [n=521]
+============================================================
+   k   Precision        nDCG        F1    Accuracy
+--------------------------------------------------
+   1      0.8560      0.8560    0.8560      0.8560
+   3      0.8445      0.9110    0.8445      0.8695
+   5      0.8246      0.9174    0.8246      0.8714
+  10      0.8096      0.9169    0.8096      0.8637
+
+============================================================
+  Expert 2 — MalConv (raw bytes)  [n=1378]
+============================================================
+   k   Precision        nDCG        F1    Accuracy
+--------------------------------------------------
+   1      0.8933      0.8933    0.8933      0.8933
+   3      0.8771      0.9260    0.8771      0.8999
+   5      0.8637      0.9323    0.8637      0.8933
+  10      0.8486      0.9352    0.8486      0.8955
+
+============================================================
+  Expert 3 — Node2Vec (graph)  [n=720]
+============================================================
+   k   Precision        nDCG        F1    Accuracy
+--------------------------------------------------
+   1      0.9153      0.9153    0.9153      0.9153
+   3      0.9102      0.9465    0.9102      0.9236
+   5      0.9050      0.9521    0.9050      0.9236
+  10      0.8946      0.9527    0.8946      0.9278
+
+============================================================
+  MoE — Gated soft fusion  [n=1379]
+============================================================
+   k   Precision        nDCG        F1    Accuracy
+--------------------------------------------------
+   1      0.9594      0.9594    0.9594      0.9594
+   3      0.9555      0.9715    0.9555      0.9623
+   5      0.9491      0.9725    0.9491      0.9594
+  10      0.9450      0.9727    0.9450      0.9601
+
+============================================================
+  Summary — nDCG@k comparison
+============================================================
+   k      SAFE   MalConv       N2V       MoE
+----------------------------------------------
+   1   0.8560   0.8933   0.9153  *0.9594
+   3   0.9110   0.9260   0.9465  *0.9715
+   5   0.9174   0.9323   0.9521  *0.9725
+  10   0.9169   0.9352   0.9527  *0.9727
+
+  (* = best for that k)
+
+
+############################################################
+### MODEL_SEED = 43  (best_moe_s43.pt)
+############################################################
+
+Global IDs: 9441 (mal=3000, ben=6476)
+Dropped 242 ids absent from master_df (230 malware, 12 benign)
+Corpus after cleaning: 9199 (malware: 2770 benign: 6429)
+[unmapped benign SAFE] OneDriveSetup
+[bad benign SAFE npy] 7za -> Failed to interpret file PosixPath('/Users/amangolani/MOE_Paper/moepaper/MoE_project_data/embeddings_benign/7za/7za/binary_embedding.npy') as a pickle
+[unmapped benign SAFE] MRT
+[unmapped benign SAFE] MicrosoftEdge_X64_142.0.3595.94
+[unmapped benign SAFE] MicrosoftEdge_X64_143.0.3650.75
+SAFE  coverage: 0.372
+MalConv coverage: 1.000
+N2V   coverage: 0.536
+Split — train: 6441, val: 1379, test: 1379  (test malware: 415) [loaded from splits.npz]
+Evaluating on 'test' split — index: 7820 samples, queries: 1379
+
+Loading MoE checkpoint from best_moe_s43.pt ...
+loaded successfully
+
+  multi-label subsets: val 395, test 394 (tagged malware only)
+  threshold sweep (validation):
+    t=0.10  micro-F1=0.6560  macro-F1=0.5939
+    t=0.15  micro-F1=0.6833  macro-F1=0.6273
+    t=0.20  micro-F1=0.6942  macro-F1=0.6416
+    t=0.25  micro-F1=0.7046  macro-F1=0.6613
+    t=0.30  micro-F1=0.7021  macro-F1=0.6320
+    t=0.35  micro-F1=0.6828  macro-F1=0.6157
+    t=0.40  micro-F1=0.6582  macro-F1=0.6058
+    t=0.45  micro-F1=0.6289  macro-F1=0.4910
+    t=0.50  micro-F1=0.5928  macro-F1=0.4615
+    t=0.55  micro-F1=0.5599  macro-F1=0.4348
+    t=0.60  micro-F1=0.5089  macro-F1=0.3970
+  -> selected threshold 0.25 (val micro-F1 0.7046)
+
+============================================================
+  Multi-label behaviour prediction (k=20, threshold=0.25, n=394)
+============================================================
+  micro-F1 0.6146 | macro-F1 0.4947 | mAP 0.5705
+  micro-precision 0.5728 | micro-recall 0.6629
+
+  per-label F1 (test support):
+    adware          F1=0.6193  n=91
+    flooder         F1=0.0000  n=4
+    ransomware      F1=0.5185  n=53
+    dropper         F1=0.6369  n=144
+    spyware         F1=0.7061  n=192
+    packed          F1=0.5817  n=155
+    crypto_miner    F1=0.0952  n=15
+    file_infector   F1=0.6192  n=132
+    installer       F1=0.5000  n=34
+    worm            F1=0.6184  n=147
+    downloader      F1=0.5464  n=89
+
+  NOTE: rare categories have small test support; their per-label
+        F1 is unstable and should be read alongside micro-F1.
+  MoE FAISS index built.
+
+============================================================
+  EXPERIMENT 1 - Binary detection (gate_bin + classifier head)
+============================================================
+  n=1379 (malware 415)  threshold=0.5
+  accuracy 0.8477  (all-benign baseline 0.6991)
+  malware precision 0.6938 | recall 0.8843 | F1 0.7775
+  ROC-AUC 0.9185
+  confusion  TP 367  FP 162  FN 48  TN 802
+
+============================================================
+  EXPERIMENT 2 - Behaviour-level retrieval (shared-tag relevance)
+============================================================
+  Query set: tagged malware in test. Index: train+val (all samples).
+
+  MoE  (queries 394, index 7820)
+     k   Precision     nDCG
+     1      0.7690   0.7690
+     3      0.7090   0.7230
+     5      0.6736   0.6948
+    10      0.6221   0.6512
+
+  SAFE  (queries 345, index 2904)
+     k   Precision     nDCG
+     1      0.8058   0.8058
+     3      0.7546   0.7669
+     5      0.7212   0.7402
+    10      0.6797   0.7050
+
+  MalConv  (queries 393, index 7820)
+     k   Precision     nDCG
+     1      0.7557   0.7557
+     3      0.6836   0.6992
+     5      0.6361   0.6624
+    10      0.5819   0.6155
+
+  Node2Vec  (queries 279, index 4209)
+     k   Precision     nDCG
+     1      0.6631   0.6631
+     3      0.6762   0.6739
+     5      0.6602   0.6632
+    10      0.6391   0.6471
+
+  MoE on SAFE-covered queries (345)
+     1      0.7710   0.7710
+     3      0.7111   0.7251
+     5      0.6759   0.6971
+    10      0.6154   0.6471
+
+  MoE on MalConv-covered queries (393)
+     1      0.7710   0.7710
+     3      0.7108   0.7248
+     5      0.6753   0.6966
+    10      0.6237   0.6528
+
+  MoE on Node2Vec-covered queries (279)
+     1      0.7599   0.7599
+     3      0.7192   0.7297
+     5      0.6789   0.6994
+    10      0.6215   0.6519
+
+============================================================
+  EXPERIMENT 3 - Gate weights
+============================================================
+  Mean renormalised weights on TEST, grouped by availability pattern
+  pattern (Mal,SAFE,N2V)     n    gate_bin [M S N]        gate_retr [M S N]
+  (np.int64(1), np.int64(1), np.int64(1))   372   [0.276 0.362 0.362]   [0.381 0.237 0.381]
+  (np.int64(1), np.int64(1), np.int64(0))   149   [0.440 0.560 0.000]   [0.661 0.339 0.000]
+  (np.int64(1), np.int64(0), np.int64(1))   348   [0.259 0.000 0.741]   [0.500 0.000 0.500]
+  (np.int64(1), np.int64(0), np.int64(0))   509   [1.000 0.000 0.000]   [1.000 0.000 0.000]
+  (np.int64(0), np.int64(0), np.int64(0))     1   [0.000 0.000 0.000]   [0.000 0.000 0.000]
+
+  Worked example (panel c): test malware row 230, SAFE missing
+                           MalConv      SAFE  Node2Vec
+  mask                       1.000     0.000     1.000
+  gate_bin raw               0.333     0.333     0.333
+  gate_bin renormalised      0.500     0.000     0.500
+  gate_retr raw              0.333     0.333     0.333
+  gate_retr renormalised     0.500     0.000     0.500
+
+  results saved -> final_evals_best_moe_s43.json
+
+Running evaluation on test split...
+
+  Evaluation subsets (queries / index entries):
+    SAFE     :   521 /  2904
+    MalConv  :  1378 /  7820
+    Node2Vec :   720 /  4209
+    MoE      :  1379 /  7820   (full partition)
+    NOTE: single-expert rows are computed on different subsets and
+          are therefore not directly comparable to one another.
+
+============================================================
+  Expert 1 — SAFE (function semantics)  [n=521]
+============================================================
+   k   Precision        nDCG        F1    Accuracy
+--------------------------------------------------
+   1      0.8560      0.8560    0.8560      0.8560
+   3      0.8445      0.9110    0.8445      0.8695
+   5      0.8246      0.9174    0.8246      0.8714
+  10      0.8096      0.9169    0.8096      0.8637
+
+============================================================
+  Expert 2 — MalConv (raw bytes)  [n=1378]
+============================================================
+   k   Precision        nDCG        F1    Accuracy
+--------------------------------------------------
+   1      0.8933      0.8933    0.8933      0.8933
+   3      0.8771      0.9260    0.8771      0.8999
+   5      0.8637      0.9323    0.8637      0.8933
+  10      0.8486      0.9352    0.8486      0.8955
+
+============================================================
+  Expert 3 — Node2Vec (graph)  [n=720]
+============================================================
+   k   Precision        nDCG        F1    Accuracy
+--------------------------------------------------
+   1      0.9153      0.9153    0.9153      0.9153
+   3      0.9102      0.9465    0.9102      0.9236
+   5      0.9050      0.9521    0.9050      0.9236
+  10      0.8946      0.9527    0.8946      0.9278
+
+============================================================
+  MoE — Gated soft fusion  [n=1379]
+============================================================
+   k   Precision        nDCG        F1    Accuracy
+--------------------------------------------------
+   1      0.9384      0.9384    0.9384      0.9384
+   3      0.9292      0.9604    0.9292      0.9471
+   5      0.9197      0.9625    0.9197      0.9478
+  10      0.9008      0.9631    0.9008      0.9485
+
+============================================================
+  Summary — nDCG@k comparison
+============================================================
+   k      SAFE   MalConv       N2V       MoE
+----------------------------------------------
+   1   0.8560   0.8933   0.9153  *0.9384
+   3   0.9110   0.9260   0.9465  *0.9604
+   5   0.9174   0.9323   0.9521  *0.9625
+  10   0.9169   0.9352   0.9527  *0.9631
+
+  (* = best for that k)
+
+
+############################################################
+### MODEL_SEED = 44  (best_moe_s44.pt)
+############################################################
+
+Global IDs: 9441 (mal=3000, ben=6476)
+Dropped 242 ids absent from master_df (230 malware, 12 benign)
+Corpus after cleaning: 9199 (malware: 2770 benign: 6429)
+[unmapped benign SAFE] OneDriveSetup
+[bad benign SAFE npy] 7za -> Failed to interpret file PosixPath('/Users/amangolani/MOE_Paper/moepaper/MoE_project_data/embeddings_benign/7za/7za/binary_embedding.npy') as a pickle
+[unmapped benign SAFE] MRT
+[unmapped benign SAFE] MicrosoftEdge_X64_142.0.3595.94
+[unmapped benign SAFE] MicrosoftEdge_X64_143.0.3650.75
+SAFE  coverage: 0.372
+MalConv coverage: 1.000
+N2V   coverage: 0.536
+Split — train: 6441, val: 1379, test: 1379  (test malware: 415) [loaded from splits.npz]
+Evaluating on 'test' split — index: 7820 samples, queries: 1379
+
+Loading MoE checkpoint from best_moe_s44.pt ...
+loaded successfully
+
+  multi-label subsets: val 395, test 394 (tagged malware only)
+  threshold sweep (validation):
+    t=0.10  micro-F1=0.6808  macro-F1=0.6294
+    t=0.15  micro-F1=0.7039  macro-F1=0.6538
+    t=0.20  micro-F1=0.7166  macro-F1=0.6477
+    t=0.25  micro-F1=0.7255  macro-F1=0.6591
+    t=0.30  micro-F1=0.7257  macro-F1=0.6627
+    t=0.35  micro-F1=0.7193  macro-F1=0.6486
+    t=0.40  micro-F1=0.7011  macro-F1=0.6165
+    t=0.45  micro-F1=0.6674  macro-F1=0.5472
+    t=0.50  micro-F1=0.6466  macro-F1=0.5328
+    t=0.55  micro-F1=0.6251  macro-F1=0.5127
+    t=0.60  micro-F1=0.5888  macro-F1=0.4829
+  -> selected threshold 0.30 (val micro-F1 0.7257)
+
+============================================================
+  Multi-label behaviour prediction (k=20, threshold=0.30, n=394)
+============================================================
+  micro-F1 0.6365 | macro-F1 0.5171 | mAP 0.6077
+  micro-precision 0.6413 | micro-recall 0.6316
+
+  per-label F1 (test support):
+    adware          F1=0.5848  n=91
+    flooder         F1=0.0000  n=4
+    ransomware      F1=0.5176  n=53
+    dropper         F1=0.6242  n=144
+    spyware         F1=0.6983  n=192
+    packed          F1=0.6581  n=155
+    crypto_miner    F1=0.2000  n=15
+    file_infector   F1=0.6616  n=132
+    installer       F1=0.4898  n=34
+    worm            F1=0.6990  n=147
+    downloader      F1=0.5543  n=89
+
+  NOTE: rare categories have small test support; their per-label
+        F1 is unstable and should be read alongside micro-F1.
+  MoE FAISS index built.
+
+============================================================
+  EXPERIMENT 1 - Binary detection (gate_bin + classifier head)
+============================================================
+  n=1379 (malware 415)  threshold=0.5
+  accuracy 0.9065  (all-benign baseline 0.6991)
+  malware precision 0.8972 | recall 0.7783 | F1 0.8335
+  ROC-AUC 0.9579
+  confusion  TP 323  FP 37  FN 92  TN 927
+
+============================================================
+  EXPERIMENT 2 - Behaviour-level retrieval (shared-tag relevance)
+============================================================
+  Query set: tagged malware in test. Index: train+val (all samples).
+
+  MoE  (queries 394, index 7820)
+     k   Precision     nDCG
+     1      0.7411   0.7411
+     3      0.7056   0.7139
+     5      0.6853   0.6975
+    10      0.6528   0.6715
+
+  SAFE  (queries 345, index 2904)
+     k   Precision     nDCG
+     1      0.8058   0.8058
+     3      0.7546   0.7669
+     5      0.7212   0.7402
+    10      0.6797   0.7050
+
+  MalConv  (queries 393, index 7820)
+     k   Precision     nDCG
+     1      0.7557   0.7557
+     3      0.6836   0.6992
+     5      0.6361   0.6624
+    10      0.5819   0.6155
+
+  Node2Vec  (queries 279, index 4209)
+     k   Precision     nDCG
+     1      0.6631   0.6631
+     3      0.6762   0.6739
+     5      0.6602   0.6632
+    10      0.6391   0.6471
+
+  MoE on SAFE-covered queries (345)
+     1      0.7478   0.7478
+     3      0.7169   0.7243
+     5      0.6974   0.7087
+    10      0.6641   0.6824
+
+  MoE on MalConv-covered queries (393)
+     1      0.7430   0.7430
+     3      0.7074   0.7157
+     5      0.6870   0.6993
+    10      0.6542   0.6730
+
+  MoE on Node2Vec-covered queries (279)
+     1      0.7455   0.7455
+     3      0.7204   0.7268
+     5      0.7061   0.7151
+    10      0.6799   0.6945
+
+============================================================
+  EXPERIMENT 3 - Gate weights
+============================================================
+  Mean renormalised weights on TEST, grouped by availability pattern
+  pattern (Mal,SAFE,N2V)     n    gate_bin [M S N]        gate_retr [M S N]
+  (np.int64(1), np.int64(1), np.int64(1))   372   [0.450 0.453 0.097]   [0.000 1.000 0.000]
+  (np.int64(1), np.int64(1), np.int64(0))   149   [0.500 0.500 0.000]   [0.000 1.000 0.000]
+  (np.int64(1), np.int64(0), np.int64(1))   348   [0.782 0.000 0.218]   [0.500 0.000 0.500]
+  (np.int64(1), np.int64(0), np.int64(0))   509   [1.000 0.000 0.000]   [1.000 0.000 0.000]
+  (np.int64(0), np.int64(0), np.int64(0))     1   [0.000 0.000 0.000]   [0.000 0.000 0.000]
+
+  Worked example (panel c): test malware row 230, SAFE missing
+                           MalConv      SAFE  Node2Vec
+  mask                       1.000     0.000     1.000
+  gate_bin raw               0.500     0.500     0.000
+  gate_bin renormalised      1.000     0.000     0.000
+  gate_retr raw              0.000     1.000     0.000
+  gate_retr renormalised     0.500     0.000     0.500
+
+  results saved -> final_evals_best_moe_s44.json
+
+Running evaluation on test split...
+
+  Evaluation subsets (queries / index entries):
+    SAFE     :   521 /  2904
+    MalConv  :  1378 /  7820
+    Node2Vec :   720 /  4209
+    MoE      :  1379 /  7820   (full partition)
+    NOTE: single-expert rows are computed on different subsets and
+          are therefore not directly comparable to one another.
+
+============================================================
+  Expert 1 — SAFE (function semantics)  [n=521]
+============================================================
+   k   Precision        nDCG        F1    Accuracy
+--------------------------------------------------
+   1      0.8560      0.8560    0.8560      0.8560
+   3      0.8445      0.9110    0.8445      0.8695
+   5      0.8246      0.9174    0.8246      0.8714
+  10      0.8096      0.9169    0.8096      0.8637
+
+============================================================
+  Expert 2 — MalConv (raw bytes)  [n=1378]
+============================================================
+   k   Precision        nDCG        F1    Accuracy
+--------------------------------------------------
+   1      0.8933      0.8933    0.8933      0.8933
+   3      0.8771      0.9260    0.8771      0.8999
+   5      0.8637      0.9323    0.8637      0.8933
+  10      0.8486      0.9352    0.8486      0.8955
+
+============================================================
+  Expert 3 — Node2Vec (graph)  [n=720]
+============================================================
+   k   Precision        nDCG        F1    Accuracy
+--------------------------------------------------
+   1      0.9153      0.9153    0.9153      0.9153
+   3      0.9102      0.9465    0.9102      0.9236
+   5      0.9050      0.9521    0.9050      0.9236
+  10      0.8946      0.9527    0.8946      0.9278
+
+============================================================
+  MoE — Gated soft fusion  [n=1379]
+============================================================
+   k   Precision        nDCG        F1    Accuracy
+--------------------------------------------------
+   1      0.9231      0.9231    0.9231      0.9231
+   3      0.9086      0.9473    0.9086      0.9275
+   5      0.9025      0.9471    0.9025      0.9289
+  10      0.8971      0.9505    0.8971      0.9268
+
+============================================================
+  Summary — nDCG@k comparison
+============================================================
+   k      SAFE   MalConv       N2V       MoE
+----------------------------------------------
+   1   0.8560   0.8933   0.9153  *0.9231
+   3   0.9110   0.9260   0.9465  *0.9473
+   5   0.9174   0.9323  *0.9521   0.9471
+  10   0.9169   0.9352  *0.9527   0.9505
+
+  (* = best for that k)

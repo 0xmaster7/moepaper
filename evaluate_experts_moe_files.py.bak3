@@ -768,14 +768,6 @@ def eval_tag_overlap(H_all, experts, index_idx, test_idx, y_bin, Y_type, ks):
         print("     k   Precision     nDCG")
         for k in ks:
             print(f"   {k:3d}      {r[k]['precision']:.4f}   {r[k]['ndcg']:.4f}")
-    # === MATCHED SUBSETS (inserted) ===
-    for name, E, m in experts:
-        qi = tagged[m[tagged].astype(bool)]
-        r = _tag_overlap_retrieval(H_all, index_idx, qi, Y_type, ks)
-        out[f"MoE@{name}"] = {"n_queries": int(len(qi)), "metrics": r}
-        print(f"\n  MoE on {name}-covered queries ({len(qi)})")
-        for k in ks:
-            print(f"   {k:3d}      {r[k]['precision']:.4f}   {r[k]['ndcg']:.4f}")
     return out
 
 
