@@ -1,0 +1,78 @@
+# Single source of truth for pipeline_v2. Every script reads this file.
+# Override any value with an env var: MOE__section__key=value
+# (e.g. MOE__s3__bucket=my-bucket).
+
+s3:
+  region: us-east-1                 # SOREL lives here; run compute here too (no transfer cost, faster)
+  bucket: moe-paper-aman-2026       # your own bucket (create it in us-east-1)
+  sorel_bucket: sorel-20m
+  sorel_binaries_prefix: 09-DEC-2020/binaries/
+  sorel_meta_db_key: 09-DEC-2020/processed-data/meta.db
+  # layout inside your bucket
+  benign_raw_prefix: benign/raw/            # benign/raw/<source>/<sha256>  (original bytes, never modified)
+  manifests_prefix: v2/manifests/
+  features_prefix: v2/features/             # Stage A output, one parquet per chunk
+  safe_prefix: v2/emb_safe/                 # Stage B1 output
+  malconv_prefix: v2/emb_malconv/           # Stage B2 output
+  leases_prefix: v2/leases/
+  models_prefix: assets/                    # safe.pb, word2id.json, malconvGCT_nocat.checkpoint
+
+sampling:
+  n_malware: 50000            # drawn from SOREL meta.db
+  n_benign_target: 70000      # what you collect across benign sources (more benign = tighter low-FPR estimates)
+  seed: 42
+  # SOREL's own time boundaries (from SOREL config.py) so splits are comparable with SOREL
+  sorel_train_val_ts: 1543542570.0
+  sorel_val_test_ts: 1547279640.0
+  # fraction of the malware budget taken from each SOREL time partition
+  malware_split_fracs: {train: 0.70, val: 0.15, test: 0.15}
+  min_per_tag: 1500           # oversample rare behaviour tags inside each partition up to this many
+  chunk_size: 500             # samples per manifest chunk (unit of work / resume)
+
+benign_sources:
+  # cap per group (repo / package / OS image) so one project can't dominate
+  max_per_group: 20
+  assemblage_hf_repo: changliu8541/Assemblage_PE
+  winget_repo: https://github.com/microsoft/winget-pkgs
+  max_file_mb: 64
+
+extract:
+  workers: 0                  # 0 = os.cpu_count()
+  r2_levels: [aaa, aa]        # try full analysis, fall back to cheaper one
+  r2_timeouts_s: [180, 90]
+  max_functions: 2000         # cap per binary (largest-first is NOT used: we keep address order)
+  safe_max_instructions: 150  # SAFE's own limit
+  ember_extractor: thrember   # thrember = EMBER2024 feature v3 (2568-d, matches your current CSV)
+  node2vec: {enabled: true, dimensions: 128, walk_length: 30, num_walks: 20, window: 10, max_nodes: 5000}
+  ldp_bins: 16
+  malconv_max_bytes: 4000000
+
+embed:
+  safe_batch: 2048
+  malconv_batch: 1            # GCT handles one variable-length file at a time
+  malconv_channels: 256
+  malconv_window: 256
+  malconv_stride: 64
+  malconv_layer: penult       # penult (fc_1 output) | post_conv
+
+dataset:
+  local_dir: data_v2          # where build_dataset.py writes dataset.npz + splits
+  split_mode: temporal        # temporal | random  (both are written; this picks the default)
+  benign_split_by_group: true # whole repos/packages land in exactly one split
+
+train:
+  seeds: [42, 43, 44]
+  d_common: 256
+  epochs: 50
+  lr: 5.0e-4
+  batch_size: 256
+  expert_dropout: 0.3         # re-select on VAL with ablations/run_ablations.py --sweep-dropout
+  w_retr_max: 0.2
+  w_bal: 0.1
+  temperature: 0.07
+  graph_expert: ldp           # ldp | node2vec  (see RUNBOOK section 'Graph expert')
+
+eval:
+  k_values: [1, 3, 5, 10]
+  knn_k: 20
+  fpr_targets: [0.001, 0.01]

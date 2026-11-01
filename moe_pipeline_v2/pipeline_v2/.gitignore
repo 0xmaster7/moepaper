@@ -1,0 +1,5 @@
+data_v2/
+results/
+manifest_*.parquet
+*.npz
+__pycache__/

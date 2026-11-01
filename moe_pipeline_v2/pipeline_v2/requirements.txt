@@ -1,0 +1,21 @@
+# Python 3.10 (Ubuntu 22.04 default). numpy stays < 2 because TensorFlow 2.15
+# (SAFE), gensim 4.3 and node2vec 0.5 all require it.
+numpy==1.26.4
+pandas==2.2.2
+pyarrow==16.1.0
+scikit-learn==1.5.2
+lightgbm==4.5.0
+faiss-cpu==1.8.0
+networkx==3.3
+gensim==4.3.3
+node2vec==0.5.0
+r2pipe>=1.8
+pefile==2024.8.26
+boto3>=1.35.90          # S3 conditional writes (IfNoneMatch / IfMatch) are used for chunk leases
+pyyaml==6.0.2
+requests==2.32.3
+huggingface_hub==0.25.2
+tabulate==0.9.0
+# PyTorch CPU wheel:  pip install torch==2.3.1 --index-url https://download.pytorch.org/whl/cpu
+# SAFE only:           pip install tensorflow-cpu==2.15.1
+# EMBER2024 features:  pip install git+https://github.com/FutureComputing4AI/EMBER2024.git
