@@ -3,32 +3,40 @@ binaries compiled from public GitHub repositories, hosted on Hugging Face
 (changliu8541/Assemblage_PE).
 
 The Hugging Face copy has only binaries.tar.xz, which is actually **zstd**
-compressed (magic 28 b5 2f fd), plus a large SQLite archive. There is no CSV,
-so the group (source repository) and build type are taken from each file's
-path inside the archive. The archive is streamed; nothing is written to disk.
+compressed (magic 28 b5 2f fd), plus a large SQLite archive. There is no CSV.
+Inside the archive, files sit in id-bucket folders (binaries/83/83/47/...):
+.pdb files carry the build config in their names, but the .exe/.dll files only
+carry their output name (MyBot.exe). So:
 
-Step 1 - look at the paths inside the archive:
-    python data/01c_benign_assemblage.py --inspect
-Step 2 - choose how many leading path parts identify a repository, then run:
-    python data/01c_benign_assemblage.py --group-depth 1 --max-files 25000
+  group  = lower-case file name. Builds of the same project in different
+           configurations (x86/x64, toolsets, opt levels) share the output name
+           and therefore land in one split; generic names (Project1.exe) are
+           merged, which is conservative. Same rule as the Windows harvest.
+  debug  = detected from imports of the debug CRT (ucrtbased.dll,
+           vcruntime140d.dll, msvcp140d.dll, msvcr120d.dll, ...). Debug builds are
+           skipped (unoptimised code, debug CRT: unlike real software) unless
+           --allow-debug.
+
+The archive is streamed; nothing is written to disk.
+    python data/01c_benign_assemblage.py --inspect          # first 60 entries
+    python data/01c_benign_assemblage.py --max-files 25000
 
 Uploads benign/raw/assemblage/<sha256> and benign/index/assemblage.csv.
-group = first --group-depth path components (the source repository), capped at
-benign_sources.max_per_group files. Paths containing "debug" are skipped unless
---allow-debug (Debug builds are unrealistic: unoptimised code, debug CRT).
---keep-prob < 1 spreads the sample over the whole archive instead of taking the
-first repositories only.
+--keep-prob < 1 spreads the sample over the whole archive instead of taking
+only the first folders.
 Each binary keeps its source repo's licence: keep files private, publish hashes.
 """
 import argparse
 import csv
 import io
 import random
+import re
 import sys
 import tarfile
 from collections import Counter
 from pathlib import Path, PurePosixPath
 
+import pefile
 import zstandard
 from huggingface_hub import HfFileSystem
 
@@ -49,16 +57,30 @@ def open_members(repo):
                 yield m, tf
 
 
-def group_of(name, depth):
-    parts = [p for p in PurePosixPath(name).parts if p not in (".", "")]
-    return "/".join(parts[:depth]) if len(parts) > depth else parts[0] if parts else "?"
+DEBUG_CRT = re.compile(r"^(ucrtbased|vcruntime\d+d|msvcp\d+d|msvcr\d+d|concrt\d+d|vcomp\d+d|mfc\d+u?d)\.dll$", re.I)
+
+
+def is_debug_build(data):
+    """True if the PE imports a debug C/C++ runtime (MSVC Debug configuration)."""
+    try:
+        pe = pefile.PE(data=data, fast_load=True)
+        pe.parse_data_directories(directories=[pefile.DIRECTORY_ENTRY["IMAGE_DIRECTORY_ENTRY_IMPORT"]])
+        for imp in getattr(pe, "DIRECTORY_ENTRY_IMPORT", []):
+            if DEBUG_CRT.match(imp.dll.decode(errors="ignore")):
+                return True
+    except Exception:
+        pass
+    return False
+
+
+def group_of(name):
+    return PurePosixPath(name).name.lower()
 
 
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--inspect", action="store_true")
     ap.add_argument("--max-files", type=int, default=25000)
-    ap.add_argument("--group-depth", type=int, default=1)
     ap.add_argument("--keep-prob", type=float, default=0.4)
     ap.add_argument("--allow-debug", action="store_true")
     args = ap.parse_args()
@@ -83,15 +105,17 @@ def main():
             break
         if not m.isfile() or m.size > max_bytes or m.size < 1024:
             continue
+        if not m.name.lower().endswith((".exe", ".dll")):
+            continue                                    # skip .pdb and other files
         n_seen += 1
-        if not args.allow_debug and "debug" in m.name.lower():
-            n_debug += 1
-            continue
-        grp = group_of(m.name, args.group_depth)
+        grp = group_of(m.name)
         if per_group[grp] >= cap or rng.random() > args.keep_prob:
             continue
         data = tf.extractfile(m).read()
         if not pe_parity.is_pe(data):
+            continue
+        if not args.allow_debug and is_debug_build(data):
+            n_debug += 1
             continue
         sha = pe_parity.sha256(data)
         if sha in seen:
@@ -102,13 +126,14 @@ def main():
         rows.append([sha, f"asm:{grp}", m.name.replace(",", "_"), len(data), ""])
         if len(rows) % 1000 == 0:
             print(f"{len(rows):,} uploaded from {len(per_group):,} groups "
-                  f"({n_seen:,} files scanned, {n_debug:,} debug skipped)", flush=True)
+                  f"({n_seen:,} exe/dll scanned, {n_debug:,} debug builds skipped)", flush=True)
     buf = io.StringIO()
     w = csv.writer(buf)
     w.writerow(["sha256", "group", "origin", "size", "os"])
     w.writerows(rows)
     s3io.put_bytes(bucket, "benign/index/assemblage.csv", buf.getvalue().encode(), region)
-    print(f"done: {len(rows):,} files from {len(per_group):,} groups")
+    print(f"done: {len(rows):,} files from {len(per_group):,} groups "
+          f"({n_seen:,} exe/dll scanned, {n_debug:,} debug builds skipped)")
 
 
 if __name__ == "__main__":
