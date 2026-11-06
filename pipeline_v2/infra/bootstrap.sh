@@ -33,6 +33,8 @@ pip install -q --upgrade pip
 pip install -q -r repo/pipeline_v2/requirements.txt
 pip install -q torch==2.3.1 --index-url https://download.pytorch.org/whl/cpu
 pip install -q git+https://github.com/FutureComputing4AI/EMBER2024.git
+pip install -q signify==0.8.1          # thrember needs signify.authenticode.SignedPEFile (gone in 0.9)
+python -c "import thrember; print(\"thrember dim\", thrember.PEFeatureExtractor().dim)"
 if [ "$STAGE" = "safe" ]; then pip install -q tensorflow-cpu==2.15.1; fi
 
 # model assets you uploaded once to s3://$BUCKET/assets/ (see RUNBOOK step 2)

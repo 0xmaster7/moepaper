@@ -255,6 +255,12 @@ def main():
     ap.add_argument("--vocab", default=str(REPO / "safe_final" / "data" / "i2v" / "word2id.json"))
     args = ap.parse_args()
     cfg = load_config()
+    # fail fast: a worker without EMBER would upload chunks with ember=0 that count as "done"
+    try:
+        ember_feats.get_extractor(cfg["extract"]["ember_extractor"])
+    except Exception as e:  # noqa: BLE001
+        print(f"FATAL: EMBER extractor unavailable ({e}) - not processing any chunk", flush=True)
+        sys.exit(1)
     n_workers = cfg["extract"]["workers"] or os.cpu_count()
     wid = f"{socket.gethostname()}-{os.getpid()}"
     threading.Thread(target=_watch_spot, daemon=True).start()
@@ -284,6 +290,13 @@ def main():
                 t0 = time.time()
                 recs = run_chunk(s3io.read_parquet(bucket, key, region).to_pandas(), pool)
                 if recs is None:
+                    break
+                n_pe = sum(bool(r["ok_pe"]) for r in recs)
+                n_em = sum(bool(r["ok_ember"]) for r in recs)
+                if n_pe and n_em < 0.9 * n_pe:
+                    summarise(recs, f"{name} REJECTED")
+                    print(f"FATAL: EMBER worked on only {n_em}/{n_pe} PE files - chunk not uploaded, stopping",
+                          flush=True)
                     break
                 s3io.write_parquet(to_table(recs), bucket, out_key, region)
                 summarise(recs, f"{name} {time.time() - t0:.0f}s")

@@ -35,9 +35,19 @@ def split_uri(uri):
     return b, k
 
 
-def get_bytes(uri, region="us-east-1", unsigned=False):
+def get_bytes(uri, region="us-east-1", unsigned=False, attempts=4):
+    """Whole object in memory. Retries reads that break mid-stream (botocore only
+    retries the request itself, not a body read that dies with an SSL/connection error)."""
     b, k = split_uri(uri)
-    return client(region, unsigned).get_object(Bucket=b, Key=k)["Body"].read()
+    for i in range(attempts):
+        try:
+            return client(region, unsigned).get_object(Bucket=b, Key=k)["Body"].read()
+        except ClientError:
+            raise                                   # NoSuchKey etc.: not transient
+        except Exception:  # noqa: BLE001
+            if i == attempts - 1:
+                raise
+            time.sleep(2 ** i)
 
 
 def get_sample_bytes(row, region="us-east-1"):
