@@ -24,7 +24,7 @@ python ablations/run_ablations.py --sweep-dropout || { push; echo EXPERIMENTS_FA
 BEST=$(python -c "import json; print(json.load(open('results/dropout_sweep_val.json'))['best'])")
 echo "expert dropout chosen on VAL: $BEST"
 export MOE__train__expert_dropout="$BEST"
-python ablations/run_ablations.py || { push; echo EXPERIMENTS_FAILED; exit 1; }
+python ablations/run_ablations.py --jobs "${MOE_JOBS:-6}" || { push; echo EXPERIMENTS_FAILED; exit 1; }
 python report/make_tables.py
 kill $SYNC 2>/dev/null
 echo EXPERIMENTS_DONE
