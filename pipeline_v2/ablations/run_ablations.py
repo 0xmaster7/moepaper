@@ -4,6 +4,7 @@ anything with an eval.json is skipped.
     python ablations/run_ablations.py --sweep-dropout     # 1) pick expert dropout on VAL (seed 42)
     python ablations/run_ablations.py                     # 2) full grid x seeds + baselines
     python ablations/run_ablations.py --only moe_full abl_concat
+    python ablations/run_ablations.py --jobs 4            # 4 runs at once, 1/4 of the CPU threads each
     python report/make_tables.py                          # 3) tables
 
 The dropout sweep reads VALIDATION outputs only; put the chosen value in
@@ -11,8 +12,11 @@ config.yaml (train.expert_dropout) before step 2.
 """
 import argparse
 import json
+import os
 import subprocess
 import sys
+import time
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import numpy as np
@@ -61,6 +65,7 @@ def main():
     ap.add_argument("--sweep-dropout", action="store_true")
     ap.add_argument("--only", nargs="*")
     ap.add_argument("--skip-baselines", action="store_true")
+    ap.add_argument("--jobs", type=int, default=1, help="runs in parallel (each gets cpu_count/jobs threads)")
     ap.add_argument("--extra", nargs=argparse.REMAINDER, default=[], help="passed to train_moe (e.g. --epochs 2)")
     args = ap.parse_args()
     cfg = load_config()
@@ -82,6 +87,8 @@ def main():
         print(f"\nbest expert dropout on VAL: {best}  -> set train.expert_dropout in config.yaml")
         return
 
+    # ---- every (run, seed) is one task: [command, ...] executed in order; resumable
+    tasks = []
     for name, extra in VARIANTS.items():
         if args.only and name not in args.only:
             continue
@@ -89,10 +96,9 @@ def main():
             rd = runs / name / f"seed{seed}"
             if (rd / "eval.json").exists():
                 continue
-            if not (rd / "outputs.npz").exists():
-                sh(["model/train_moe.py", "--name", name, "--seed", str(seed), *extra, *args.extra])
-            sh(["eval/evaluate.py", "--run", str(rd)])
-
+            steps = [] if (rd / "outputs.npz").exists() else \
+                [["model/train_moe.py", "--name", name, "--seed", str(seed), *extra, *args.extra]]
+            tasks.append((f"{name}/seed{seed}", steps + [["eval/evaluate.py", "--run", str(rd)]]))
     if not args.skip_baselines:
         for name, cmd in BASELINES.items():
             if args.only and name not in args.only:
@@ -104,14 +110,43 @@ def main():
                 p = ROOT / "results" / "baselines" / name / f"seed{seed}" / "preds.npz"
                 if p.with_name("eval.json").exists():
                     continue
-                if not p.exists():
-                    sh([*cmd, "--seed", str(seed)])
-                sh(["eval/evaluate.py", "--preds", str(p)])
+                steps = [] if p.exists() else [[*cmd, "--seed", str(seed)]]
+                tasks.append((f"{name}/seed{seed}", steps + [["eval/evaluate.py", "--preds", str(p)]]))
         p = ROOT / "results" / "baselines" / "malconv2_zeroshot" / "seed0" / "preds.npz"
-        if not p.with_name("eval.json").exists():
-            sh(["baselines/malconv_zeroshot.py"])
-            sh(["eval/evaluate.py", "--preds", str(p)])
+        if not (args.only and "malconv2_zeroshot" not in args.only) and not p.with_name("eval.json").exists():
+            tasks.append(("malconv2_zeroshot/seed0",
+                          [["baselines/malconv_zeroshot.py"], ["eval/evaluate.py", "--preds", str(p)]]))
+    # slowest first (the GNN), so it doesn't end up running alone at the end
+    tasks.sort(key=lambda t: not t[0].startswith("cfg_gnn"))
 
+    jobs = max(1, args.jobs)
+    threads = str(max(1, (os.cpu_count() or 1) // jobs))
+    env = dict(os.environ, OMP_NUM_THREADS=threads, MKL_NUM_THREADS=threads, OPENBLAS_NUM_THREADS=threads)
+    logdir = ROOT / "results" / "logs"
+    logdir.mkdir(parents=True, exist_ok=True)
+    print(f"{len(tasks)} runs to do, {jobs} at a time, {threads} threads each; per-run logs in results/logs/",
+          flush=True)
+
+    def run_task(task):
+        label, steps = task
+        t0 = time.time()
+        log = logdir / (label.replace("/", "_") + ".log")
+        with open(log, "a") as fh:
+            for st in steps:
+                fh.write("+ " + " ".join(st) + "\n")
+                fh.flush()
+                r = subprocess.run([PY, *st], cwd=ROOT, env=env if jobs > 1 else None, stdout=fh, stderr=fh)
+                if r.returncode:
+                    print(f"FAILED {label} ({(time.time() - t0) / 60:.0f} min) - see {log}", flush=True)
+                    return False
+        print(f"done   {label} ({(time.time() - t0) / 60:.0f} min)", flush=True)
+        return True
+
+    with ThreadPoolExecutor(jobs) as ex:
+        ok = list(ex.map(run_task, tasks))
+    if not all(ok):
+        print(f"{ok.count(False)} run(s) failed", flush=True)
+        sys.exit(1)
 
 if __name__ == "__main__":
     main()
